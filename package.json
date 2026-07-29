@@ -1,0 +1,42 @@
+{
+  "name": "audio-visualiser-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Turn audio tracks into visualiser videos.",
+  "main": "main.js",
+  "scripts": {
+    "start": "node server.js",
+    "electron": "electron .",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.2",
+    "ffmpeg-static": "^5.2.0",
+    "fft.js": "^4.0.4"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.malchim.audiovisualiser",
+    "productName": "Audio Visualiser Studio",
+    "files": [
+      "**/*",
+      "!*.bat",
+      "!README.md"
+    ],
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

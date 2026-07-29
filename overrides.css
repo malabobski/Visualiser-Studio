@@ -1,0 +1,20 @@
+/* Overrides to ensure picker menus are not trapped by stacking contexts and appear above buttons */
+.controls, .controls .style-picker, .controls .range-picker, .controls .simple-picker, .controls .size-picker, .controls .colour-picker {
+  isolation: auto !important;
+}
+.style-menu, .range-menu, .simple-menu, .size-menu, .colour-menu {
+  z-index: 100000 !important;
+  pointer-events: auto !important;
+}
+/* For vertical layout, ensure menus don't get clipped */
+.controls-left .style-menu,
+.controls-left .range-menu,
+.controls-left .simple-menu,
+.controls-left .size-menu,
+.controls-left .colour-menu {
+  position: absolute !important;
+}
+
+/* Ensure the preset window respects the hidden attribute even when #presetWindow selector exists */
+#presetWindow[hidden]{display:none !important;pointer-events:none !important;}
+#presetWindow[hidden] .preset-card{opacity:0 !important;transform:translateX(-22px) !important;pointer-events:none !important}

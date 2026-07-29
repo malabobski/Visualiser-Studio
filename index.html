@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Audio Visualiser Studio</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="overrides.css">
+</head>
+<body>
+  <main>
+    <section class="intro"><div><p class="eyebrow">AUDIO TO VIDEO</p><h1>Visualiser Studio</h1><small>made by malchim</small></div><p>Build a music visual, then export it as a WEBM.</p></section>
+    <section class="controls">
+      <label class="file">Choose audio<input id="file" type="file" accept="audio/*"></label>
+      <button id="dropZone" class="drop-zone" type="button"><span>＋</span><strong>Drop audio here</strong><small>or choose a file above</small></button>
+      <div class="options">
+        <input id="style" type="hidden" value="bars">
+        <div class="style-picker">
+          <span class="option-label">Style</span>
+          <button id="styleToggle" class="style-toggle" type="button" aria-expanded="false" aria-controls="styleMenu"><span id="styleName">Bars</span><span aria-hidden="true">⌄</span></button>
+          <div id="styleMenu" class="style-menu" hidden>
+            <p>Choose a visualiser style</p>
+            <div class="style-grid">
+              <button class="style-card selected" type="button" data-style="bars"><canvas data-preview="bars" width="240" height="135"></canvas><span class="card-name">Bars</span><span class="select-overlay">Select</span></button>
+              <button class="style-card" type="button" data-style="radial"><canvas data-preview="radial" width="240" height="135"></canvas><span class="card-name">Radial</span><span class="select-overlay">Select</span></button>
+              <button class="style-card" type="button" data-style="wave"><canvas data-preview="wave" width="240" height="135"></canvas><span class="card-name">Waveform</span><span class="select-overlay">Select</span></button>
+              <button class="style-card" type="button" data-style="particles"><canvas data-preview="particles" width="240" height="135"></canvas><span class="card-name">Particles</span><span class="select-overlay">Select</span></button>
+              <button class="style-card" type="button" data-style="mirror"><canvas data-preview="mirror" width="240" height="135"></canvas><span class="card-name">Mirror</span><span class="select-overlay">Select</span></button>
+              <button class="style-card" type="button" data-style="aurora"><canvas data-preview="aurora" width="240" height="135"></canvas><span class="card-name">Aurora</span><span class="select-overlay">Select</span></button>
+              <button class="style-card" type="button" data-style="orbit"><canvas data-preview="orbit" width="240" height="135"></canvas><span class="card-name">Orbit</span><span class="select-overlay">Select</span></button>
+              <button class="style-card" type="button" data-style="rings"><canvas data-preview="rings" width="240" height="135"></canvas><span class="card-name">Pulse rings</span><span class="select-overlay">Select</span></button>
+            </div>
+          </div>
+        </div>
+        <div class="colour-picker" data-colour-picker="colour"><span class="option-label">Colour</span><button id="colourToggle" class="colour-toggle" type="button" aria-expanded="false"><span class="colour-swatch" id="colourSwatch"></span><span>RGB</span></button><div id="colourMenu" class="colour-menu" hidden><p>Visual colour</p><div class="rgb-control"><label>R<input data-channel="r" type="range" min="0" max="255"></label><output></output></div><div class="rgb-control"><label>G<input data-channel="g" type="range" min="0" max="255"></label><output></output></div><div class="rgb-control"><label>B<input data-channel="b" type="range" min="0" max="255"></label><output></output></div></div><input id="colour" type="hidden" value="#9c6bff"></div>
+        <div class="colour-picker" data-colour-picker="background"><span class="option-label">Background</span><button id="backgroundToggle" class="colour-toggle" type="button" aria-expanded="false"><span class="colour-swatch" id="backgroundSwatch"></span><span>RGB</span></button><div id="backgroundMenu" class="colour-menu" hidden><p>Background colour</p><div class="rgb-control"><label>R<input data-channel="r" type="range" min="0" max="255"></label><output></output></div><div class="rgb-control"><label>G<input data-channel="g" type="range" min="0" max="255"></label><output></output></div><div class="rgb-control"><label>B<input data-channel="b" type="range" min="0" max="255"></label><output></output></div></div><input id="background" type="hidden" value="#11121a"></div>
+        <div class="size-picker"><span class="option-label">Video size</span><button id="sizeToggle" class="range-toggle" type="button" aria-expanded="false"><span id="sizeLabel">1080p (default)</span><span aria-hidden="true">⌄</span></button><div id="sizeMenu" class="size-menu" hidden><p>Video dimensions</p><label>Aspect ratio<select id="aspect"><option value="16:9" selected>Landscape (16:9)</option><option value="1:1">Square (1:1)</option><option value="4:5">Portrait (4:5)</option><option value="9:16">Vertical (9:16)</option></select></label><label>Resolution<select id="resolution"><option value="720">720p</option><option value="1080" selected>1080p</option><option value="1440">1440p</option><option value="2160">2160p (4K)</option><option value="2880">2880p</option><option value="4320">4320p (8K)</option></select></label><button id="sizeDefault" class="menu-default" type="button">Default: 16:9 at 1080p</button></div><input id="size" type="hidden" value="1920x1080"></div>
+        <div class="simple-picker" data-picker="framerate"><span class="option-label">Frame rate</span><button id="framerateToggle" class="range-toggle" type="button" aria-expanded="false"><span id="framerateLabel">30 FPS (default)</span><span aria-hidden="true">⌄</span></button><div id="framerateMenu" class="simple-menu" hidden><button class="simple-option" data-value="24">24 FPS</button><button class="simple-option selected" data-value="30">30 FPS (default)</button><button class="simple-option" data-value="60">60 FPS</button></div><input id="framerate" type="hidden" value="30"></div>
+        <div class="simple-picker" data-picker="response"><span class="option-label">Visual response</span><button id="responseToggle" class="range-toggle" type="button" aria-expanded="false"><span id="responseLabel">Dynamic (default)</span><span aria-hidden="true">⌄</span></button><div id="responseMenu" class="simple-menu" hidden><button class="simple-option" data-value="smooth">Smooth</button><button class="simple-option selected" data-value="dynamic">Dynamic (default)</button><button class="simple-option" data-value="punchy">Punchy</button></div><input id="response" type="hidden" value="dynamic"></div>
+        <div class="range-picker">
+          <span class="option-label">Frequencies</span>
+          <button id="rangeToggle" class="range-toggle" type="button" aria-expanded="false" aria-controls="rangeMenu"><span id="rangeLabel">20 Hz–20k Hz</span><span aria-hidden="true">⌄</span></button>
+          <div id="rangeMenu" class="range-menu" hidden>
+            <p>Visualiser frequency range</p>
+            <div class="dual-range" id="dualRange">
+              <div class="range-rail"></div><div class="range-fill" id="rangeFill"></div>
+              <input id="rangeLow" type="range" min="20" max="24000" value="20" step="10" aria-label="Lowest frequency">
+              <input id="rangeHigh" type="range" min="20" max="24000" value="20000" step="10" aria-label="Highest frequency">
+            </div>
+            <div class="range-fields"><label>From<input id="rangeLowText" inputmode="numeric" value="20"><span>Hz</span></label><label>To<input id="rangeHighText" inputmode="numeric" value="20000"><span>Hz</span></label></div><button id="rangeDefault" class="menu-default" type="button">Default: 20 Hz–20k Hz</button>
+          </div>
+        </div>
+      </div>
+      <div class="actions"><button id="presets" type="button">Customise</button><button id="play" disabled>Preview</button><button id="export" disabled>Export WEBM</button></div>
+      <p id="status" aria-live="polite">Choose an audio file to begin.</p>
+    </section>
+    <section class="stage"><canvas id="canvas" width="1280" height="720"></canvas><div id="previewMeta" class="preview-meta">16:9&nbsp;&nbsp;•&nbsp;&nbsp;1280 × 720&nbsp;&nbsp;•&nbsp;&nbsp;30 FPS</div><div class="preview-controls" id="previewControls"><button id="rewind" type="button" aria-label="Rewind 10 seconds" disabled>↺ 10</button><button id="previewPlay" type="button" aria-label="Play or pause" disabled>▶</button><button id="forward" type="button" aria-label="Fast forward 10 seconds" disabled>10 ↻</button><label>Volume<input id="volume" type="range" min="0" max="100" value="100" disabled></label></div><div class="track"><span id="title">No track loaded</span><span id="time">0:00</span></div></section>
+  </main>
+  <section id="presetWindow" class="preset-window" hidden><div class="preset-card"><div class="preset-heading"><div><p class="eyebrow">STYLE PRESETS</p><h2 id="presetStyleName">Bars</h2></div><button id="presetClose" class="close-preset" type="button" aria-label="Close presets">×</button></div><div class="theme-panel"><p>Colour themes</p><div class="theme-grid"><button class="theme" data-colour="#9c6bff" data-background="#11121a"><i style="background:#9c6bff"></i>Midnight violet</button><button class="theme" data-colour="#4de1b1" data-background="#10231f"><i style="background:#4de1b1"></i>Sea glass</button><button class="theme" data-colour="#ff8a65" data-background="#291516"><i style="background:#ff8a65"></i>Sunset ember</button><button class="theme" data-colour="#56a8ff" data-background="#0d1729"><i style="background:#56a8ff"></i>Electric blue</button><button class="theme" data-colour="#f4d35e" data-background="#221e10"><i style="background:#f4d35e"></i>Golden hour</button><button class="theme" data-colour="#f5f5f5" data-background="#161616"><i style="background:#f5f5f5"></i>Monochrome</button></div></div><div class="style-options"><p id="styleOptionHint">Tune this style</p><div id="styleOptionControls"></div></div></div></section>
+  <section id="exportScreen" class="export-screen" hidden><div class="export-card"><p class="eyebrow">EXPORTING WEBM</p><h2>Making your visual</h2><div class="export-progress"><span id="exportFill"></span></div><p id="exportPercent">0%</p><p id="exportPrompt">Cooking up visuals…</p><button id="exportCancel" class="export-cancel" type="button">Cancel export</button></div></section>
+  <script src="app.js"></script>
+</body>
+</html>
