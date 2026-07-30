@@ -20,7 +20,7 @@
   },
   "build": {
     "appId": "com.malchim.audiovisualiser",
-    "productName": "Audio Visualiser Studio",
+    "productName": "Visualiser Studio",
     "files": [
       "**/*",
       "!*.bat",

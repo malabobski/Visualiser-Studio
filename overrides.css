@@ -15,6 +15,104 @@
   position: absolute !important;
 }
 
-/* Ensure the preset window respects the hidden attribute even when #presetWindow selector exists */
+/* Fix the actions row after adding a 4th button (Toggle Layout):
+   1) grid columns were sizing to fit the widest button's text, overflowing
+      the panel — minmax(0,...) stops that.
+   2) the "highlighted" gradient button was targeting :last-child, which
+      used to mean Export but now means Toggle Layout — pin it to Export by id instead. */
+main:not(.controls-left) .actions,
+body main:not(.controls-left) .actions{grid-template-columns:minmax(0,1fr) !important;}
+.controls-left .actions{grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;}
+.actions button{min-width:0;overflow:hidden;text-overflow:ellipsis;}
+/* Top (default) layout: the actions column is now wide enough for the
+   longest label ("Toggle Layout"), so let text render in full instead of
+   truncating with an ellipsis. Buttons stay the same width as each other
+   (same grid column), so they remain aligned. */
+main:not(.controls-left) .actions button{overflow:visible;text-overflow:clip;}
+.actions button:last-child{background:var(--panel-hi) !important;box-shadow:inset 1px 1px #ffffff18 !important;}
+.actions button#export{background:linear-gradient(135deg,var(--accent-2),var(--accent)) !important;box-shadow:inset 1px 1px #ffffff47,0 7px 15px #090b174d !important;}
+.stage-toggles{position:absolute;z-index:3;top:16px;left:16px;display:flex;gap:8px}
+.stage-toggle{width:34px;height:34px;display:grid;place-items:center;padding:0;border:1px solid #ffffff1c;border-radius:9px;background:#101421a8;color:#c5cadb;backdrop-filter:blur(10px);transition:background .15s ease,color .15s ease}
+.stage-toggle:hover{background:#1b2134;color:#fff}
+/* Hide the fullscreen button while the Customise window is open */
+main.presets-open .stage-toggles{display:none !important;}
+
+/* Style previews: let the icon fill the whole card, remove the redundant
+   "Select" overlay, and instead blur the icon + fade the name up from the
+   bottom on hover. */
+.style-card canvas{transition:filter .25s ease}
+.style-card:hover canvas,.style-card:focus-visible canvas{filter:blur(6px) brightness(.55)}
+.select-overlay{display:none !important;}
+.card-name{position:absolute !important;left:0;right:0;bottom:0;padding:10px 9px !important;text-align:center;opacity:0;transform:translateY(10px);transition:opacity .25s ease,transform .25s ease;pointer-events:none;text-shadow:0 2px 6px #000a;}
+.style-card:hover .card-name,.style-card:focus-visible .card-name{opacity:1;transform:translateY(0)}
+
+/* Small "what does this button do" hints, for icon-only controls.
+   Positioned by JS and attached to the very end of <body>, so they float
+   above everything and never get clipped by a parent's overflow (the stage,
+   the scrolling presets panel, etc). */
+.hint-tip{position:fixed;z-index:99999;left:0;top:0;transform:translate(-50%,-100%) translateY(-6px);opacity:0;pointer-events:none;white-space:nowrap;padding:5px 9px;border-radius:7px;background:#181c2bf0;color:#e9ecf5;font:11px 'Space Grotesk',sans-serif;box-shadow:0 8px 18px #0009;transition:opacity .18s ease,transform .18s ease}
+.hint-tip.visible{opacity:1;transform:translate(-50%,-100%) translateY(-10px)}
+
+/* Fullscreen auto-hide: after 2s of no mouse/keyboard activity while in
+   fullscreen, fade the overlay controls (and the cursor) away. */
+.stage.ui-idle .stage-toggles,.stage.ui-idle .preview-meta,.stage.ui-idle .preview-controls,.stage.ui-idle .track{opacity:0;pointer-events:none}
+.stage.ui-idle{cursor:none}
+.stage-toggles,.preview-controls,.track{transition:opacity .4s ease}
+.preview-meta{transition:opacity .4s ease}
+
+/* No rounded corners / shadow / border while the stage is fullscreen */
+.stage:fullscreen{border-radius:0;box-shadow:none;border:none;}
+.stage:fullscreen canvas{border-radius:0;}
+
+/* Volume slider: an animated "water" fill using the app's chosen accent
+   colour and background colour. The visible fill is a decorative layer;
+   the actual <input type=range> sits on top, invisible, for real dragging. */
+.volume-track{position:relative;width:72px;height:14px;display:inline-flex;align-items:center;--vol-fill:100%;--vol-color:#7f6dff;--vol-bg:#10121b;}
+.volume-fill-mask{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:6px;border-radius:99px;overflow:hidden;background:var(--vol-bg);}
+.volume-water{position:absolute;inset:0;width:var(--vol-fill);background:radial-gradient(circle at 15% 50%,var(--vol-bg) 0%,transparent 42%),radial-gradient(circle at 55% 50%,var(--vol-bg) 0%,transparent 46%),radial-gradient(circle at 88% 50%,var(--vol-bg) 0%,transparent 38%),var(--vol-color);background-size:220% 100%;filter:blur(1.5px);animation:volumeWater 3.2s linear infinite;transition:width .12s linear;}
+@keyframes volumeWater{from{background-position:0% 0}to{background-position:-220% 0}}
+.volume-track input#volume{position:relative;z-index:2;width:100%;height:14px;margin:0;background:transparent !important;-webkit-appearance:none;appearance:none;cursor:pointer;}
+.volume-track input#volume::-webkit-slider-runnable-track{background:transparent;height:14px;}
+.volume-track input#volume::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0008;margin-top:0;cursor:pointer;}
+.volume-track input#volume:disabled{cursor:not-allowed;}
 #presetWindow[hidden]{display:none !important;pointer-events:none !important;}
 #presetWindow[hidden] .preset-card{opacity:0 !important;transform:translateX(-22px) !important;pointer-events:none !important}
+
+/* Ambient background orbs: replace the old static light circles with two
+   soft, blurred blobs that drift slowly around the viewport and cycle
+   very slowly between blue, purple and red. */
+.bg-orb{position:fixed;z-index:-1;top:0;left:0;width:56vw;height:56vw;max-width:820px;max-height:820px;border-radius:50%;filter:blur(90px);opacity:.4;pointer-events:none;will-change:transform,background-color;}
+.bg-orb-1{margin:-6vw 0 0 -8vw;animation:bgOrbMove1 55s ease-in-out infinite,bgOrbColour1 40s ease-in-out infinite;}
+.bg-orb-2{margin:32vh 0 0 46vw;animation:bgOrbMove2 65s ease-in-out infinite,bgOrbColour2 45s ease-in-out infinite;}
+@keyframes bgOrbMove1{
+  0%{transform:translate(0,0)}
+  25%{transform:translate(22vw,12vh)}
+  50%{transform:translate(6vw,34vh)}
+  75%{transform:translate(-14vw,14vh)}
+  100%{transform:translate(0,0)}
+}
+@keyframes bgOrbMove2{
+  0%{transform:translate(0,0)}
+  30%{transform:translate(-20vw,-16vh)}
+  60%{transform:translate(-6vw,-32vh)}
+  100%{transform:translate(0,0)}
+}
+@keyframes bgOrbColour1{
+  0%,100%{background:#3d5aff}
+  33%{background:#8a4dff}
+  66%{background:#ff4d5a}
+}
+@keyframes bgOrbColour2{
+  0%,100%{background:#8a4dff}
+  33%{background:#ff4d5a}
+  66%{background:#3d5aff}
+}
+@media(prefers-reduced-motion:reduce){
+  .bg-orb{animation:none;}
+}
+
+/* Defensive fix: make sure any open dropdown/customise menu always renders
+   above the action buttons, even if a stacking-context quirk elsewhere
+   would otherwise let a button paint on top of it. */
+.controls .actions{position:relative;z-index:1;}
+.controls .style-menu,.controls .range-menu,.controls .simple-menu,.controls .size-menu,.controls .colour-menu{z-index:100001 !important;}

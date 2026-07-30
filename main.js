@@ -3,6 +3,10 @@
 // your app already used, and opens a window pointed at it.
 
 const { app, BrowserWindow } = require('electron');
+const path = require('path');
+
+const APP_TITLE = 'Visualiser Studio';
+const ICON_PATH = path.join(__dirname, 'build', 'icon.png');
 
 // ffmpeg-static hands us a path to a ready-to-use ffmpeg program.
 // When the app is packaged for distribution, that path lands inside a
@@ -28,6 +32,8 @@ async function createWindow() {
   await startServer({ port: PORT, ffmpegBin: resolveFfmpegPath() });
 
   mainWindow = new BrowserWindow({
+    title: APP_TITLE,
+    icon: ICON_PATH,
     width: 1320,
     height: 880,
     minWidth: 980,
@@ -39,7 +45,20 @@ async function createWindow() {
     },
   });
 
+  // Electron normally renames the window to match the loaded page's <title>.
+  // Keep the window titled "Visualiser Studio" regardless of what the page sets.
+  mainWindow.on('page-title-updated', (event) => {
+    event.preventDefault();
+  });
+
   mainWindow.loadURL(`http://localhost:${PORT}`);
+
+  // Stop Ctrl+scroll from zooming the whole window — this app uses Ctrl+scroll
+  // on the volume slider for fine adjustment, and the two would otherwise fight.
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow.webContents.setVisualZoomLevelLimits(1, 1);
+    mainWindow.setTitle(APP_TITLE);
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;

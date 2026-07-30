@@ -43,7 +43,7 @@ async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'f
       values[band] = clamp(base + transient); history[band] = history[band] * .7 + base * .3; energy += values[band];
     }
     const w = settings.width, h = settings.height, cx = w / 2, cy = h / 2, unit = Math.min(w, h), average = energy / values.length;
-    const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.hypot(cx, cy)); bg.addColorStop(0, settings.background); bg.addColorStop(.9, settings.background); bg.addColorStop(1, '#11131d'); ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = settings.background; ctx.fillRect(0, 0, w, h);
     const valueAt = i => values[Math.min(values.length - 1, Math.floor(i / 96 * values.length))];
     if (settings.style === 'wave') { ctx.strokeStyle = settings.colour; ctx.lineWidth = Math.max(3, w / 360); ctx.beginPath(); for (let i = 0; i < w; i += 2) { const sample = samples[Math.floor(centre - fftSize / 2 + i / w * fftSize)] || 0, y = cy + sample * h * .35; i ? ctx.lineTo(i, y) : ctx.moveTo(i, y); } ctx.stroke(); }
     else if (settings.style === 'radial' || settings.style === 'rings' || settings.style === 'orbit') { for (let i = 0; i < 112; i++) { const v = values[i], a = i / 112 * Math.PI * 2, radius = unit * (.16 + (settings.style === 'rings' ? i % 8 * .045 : 0)); ctx.strokeStyle = rgba(settings.colour, .2 + v * .8); ctx.lineWidth = Math.max(2, unit * .004); ctx.beginPath(); if (settings.style === 'rings') ctx.arc(cx, cy, radius + v * unit * .04, 0, Math.PI * 2); else { ctx.moveTo(cx + Math.cos(a) * radius, cy + Math.sin(a) * radius); ctx.lineTo(cx + Math.cos(a) * (radius + v * unit * .3), cy + Math.sin(a) * (radius + v * unit * .3)); } ctx.stroke(); } }
