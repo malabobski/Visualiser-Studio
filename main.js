@@ -8,6 +8,14 @@ const path = require('path');
 const APP_TITLE = 'Visualiser Studio';
 const ICON_PATH = path.join(__dirname, 'build', 'icon.png');
 
+// Only one copy of the app should ever run at once — a second copy would
+// otherwise try to start its own server on the same port and crash with
+// EADDRINUSE. If another instance is already running, just focus it and quit.
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+}
+
 // ffmpeg-static hands us a path to a ready-to-use ffmpeg program.
 // When the app is packaged for distribution, that path lands inside a
 // compressed "app.asar" archive, and programs can't be run directly out of
@@ -29,7 +37,7 @@ async function createWindow() {
   const { startServer } = require('./server.js');
 
   // Start the same server.js logic as before, but tell it which ffmpeg to use.
-  await startServer({ port: PORT, ffmpegBin: resolveFfmpegPath() });
+  const { port: activePort } = await startServer({ port: PORT, ffmpegBin: resolveFfmpegPath() });
 
   mainWindow = new BrowserWindow({
     title: APP_TITLE,
@@ -51,7 +59,7 @@ async function createWindow() {
     event.preventDefault();
   });
 
-  mainWindow.loadURL(`http://localhost:${PORT}`);
+  mainWindow.loadURL(`http://localhost:${activePort}`);
 
   // Stop Ctrl+scroll from zooming the whole window — this app uses Ctrl+scroll
   // on the volume slider for fine adjustment, and the two would otherwise fight.
@@ -71,6 +79,13 @@ app.on('window-all-closed', () => {
   // On Windows/Linux, quit fully when the window closes.
   // On Mac, apps conventionally stay open until Cmd+Q.
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
 });
 
 app.on('activate', () => {
