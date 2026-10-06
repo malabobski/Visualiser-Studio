@@ -6,6 +6,8 @@ const os = require('os');
 const { spawn } = require('child_process');
 const { renderOffline } = require('./offline-renderer');
 
+const { randomUUID } = require('crypto');
+const completedDownloads = new Map();
 const root = __dirname;
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 
@@ -103,7 +105,11 @@ async function renderExact(req, res, settings, ffmpegBin = 'ffmpeg') {
         if (Array.isArray(parsed)) params = parsed.filter((n) => typeof n === 'number' && Number.isFinite(n));
       } catch { /* malformed/missing params — offline-renderer falls back to defaults */ }
       await renderOffline(input, output, { width, height, fps: [24, 30, 60].includes(settings.fps) ? settings.fps : 30, style: settings.style, colour: /^#[0-9a-f]{6}$/i.test(settings.colour) ? settings.colour : '#9c6bff', background: /^#[0-9a-f]{6}$/i.test(settings.background) ? settings.background : '#11121a', params }, sendProgress, ffmpegBin);
-      sendSseEvent(res, 'complete', { output });
+      const token = randomUUID();
+      const expiry = setTimeout(() => { completedDownloads.delete(token); fsp.rm(temp, { recursive: true, force: true }).catch(() => {}); }, 60 * 60 * 1000);
+      expiry.unref();
+      completedDownloads.set(token, { output, temp, expiry });
+      sendSseEvent(res, 'complete', { token });
     } catch (err) {
       sendSseEvent(res, 'error', { message: `Offline render failed. ${err.message}` });
       await fsp.rm(temp, { recursive: true, force: true }).catch(() => {});
@@ -113,19 +119,18 @@ async function renderExact(req, res, settings, ffmpegBin = 'ffmpeg') {
   });
 }
 
-async function serveDownload(req, res, requestedFile) {
-  const safeBase = path.resolve(os.tmpdir());
-  const resolved = path.resolve(requestedFile);
-  if (!resolved.startsWith(safeBase)) return send(res, 403, 'Forbidden');
+async function serveDownload(req, res, token) {
+  const download = completedDownloads.get(token);
+  if (!download) return send(res, 404, 'Recording not found or expired.');
   try {
-    const stat = await fsp.stat(resolved);
+    const stat = await fsp.stat(download.output);
+    completedDownloads.delete(token); clearTimeout(download.expiry);
     res.writeHead(200, { 'Content-Type': 'video/webm', 'Content-Length': stat.size, 'Content-Disposition': 'attachment; filename="audio-visualiser.webm"' });
-    const stream = fs.createReadStream(resolved);
+    const stream = fs.createReadStream(download.output);
+    stream.on('error', () => res.destroy());
+    res.on('close', () => { stream.destroy(); fsp.rm(download.temp, { recursive: true, force: true }).catch(() => {}); });
     stream.pipe(res);
-    stream.on('close', () => fsp.rm(path.dirname(resolved), { recursive: true, force: true }).catch(() => {}));
-  } catch {
-    send(res, 404, 'Not found');
-  }
+  } catch { send(res, 404, 'Not found'); }
 }
 
 // Builds and starts the server. ffmpegBin lets the caller (Electron, or you
@@ -141,7 +146,7 @@ function startServer({ port = 3000, ffmpegBin = 'ffmpeg' } = {}) {
         return convert(req, res, [24, 30, 60].includes(requestedFps) ? requestedFps : 30, ffmpegBin);
       }
       if (req.method === 'POST' && requestUrl.pathname === '/render') return renderExact(req, res, { style: requestUrl.searchParams.get('style') || 'bars', colour: requestUrl.searchParams.get('colour') || '#9c6bff', background: requestUrl.searchParams.get('background') || '#11121a', size: requestUrl.searchParams.get('size') || '1280x720', fps: Number(requestUrl.searchParams.get('fps')), params: requestUrl.searchParams.get('params') || '[]' }, ffmpegBin);
-      if (req.method === 'GET' && requestUrl.pathname === '/download') return serveDownload(req, res, requestUrl.searchParams.get('file'));
+      if (req.method === 'GET' && requestUrl.pathname === '/download') return serveDownload(req, res, requestUrl.searchParams.get('token'));
       if (req.method !== 'GET') return send(res, 405, 'Method not allowed');
       const requested = req.url === '/' ? '/index.html' : req.url;
       const file = path.resolve(root, `.${requested.split('?')[0]}`);

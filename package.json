@@ -1,6 +1,6 @@
 {
   "name": "audio-visualiser-studio",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
   "description": "Turn audio tracks into visualiser videos.",
   "main": "main.js",
@@ -11,12 +11,13 @@
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.2",
+    "discord-rpc": "^4.0.1",
     "ffmpeg-static": "^5.2.0",
     "fft.js": "^4.0.4"
   },
   "devDependencies": {
-    "electron": "^31.7.7",
-    "electron-builder": "^24.13.3"
+    "electron": "^44.0.0",
+    "electron-builder": "^26.15.3"
   },
   "build": {
     "appId": "com.malchim.audiovisualiser",
@@ -24,10 +25,13 @@
     "files": [
       "**/*",
       "!*.bat",
-      "!README.md"
+      "!README.md",
+      "!.git/**",
+      "!dist/**"
     ],
     "asarUnpack": [
-      "node_modules/ffmpeg-static/**"
+      "node_modules/ffmpeg-static/**",
+      "now-playing.ps1"
     ],
     "win": {
       "target": "nsis"

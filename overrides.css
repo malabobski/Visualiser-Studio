@@ -1,4 +1,75 @@
-/* Overrides to ensure picker menus are not trapped by stacking contexts and appear above buttons */
+/* Native <select> elements (aspect/resolution inside the Video size menu,
+   and the three dropdowns in Settings) were missing appearance:none and a
+   custom chevron, so browsers fell back to their plain, square-cornered
+   native control instead of the app's rounded "squircle" look used
+   everywhere else (e.g. Artist Themes, or the Frame rate/Response pickers
+   on the main control bar, which are custom-built rather than <select>).
+   Declared self-contained here (rather than relying on another selector's
+   background-image cascading in) so it can't be quietly reset by a
+   `background:` shorthand on a more specific rule. */
+.size-menu select,
+.settings-select-label select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: linear-gradient(45deg,transparent 50%,#aeb5cb 50%),linear-gradient(135deg,#aeb5cb 50%,transparent 50%);
+  background-position: calc(100% - 15px) 15px, calc(100% - 10px) 15px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
+}
+
+/* --- Live section --------------------------------------------------- */
+
+/* Sidebar "LIVE" badge used as this nav item's icon: a small squircle
+   pill with a pulsing dot, standing in for the icons the other items use. */
+.live-badge{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;height:18px;padding:0 7px;border-radius:999px;background:#2c1f45;color:#c9b6ff;font:700 9px 'DM Mono',monospace;letter-spacing:.06em}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#ff5f6d;box-shadow:0 0 0 0 #ff5f6d66;animation:liveDotPulse 1.6s ease-out infinite}
+@keyframes liveDotPulse{0%{box-shadow:0 0 0 0 #ff5f6d66}70%{box-shadow:0 0 0 7px #ff5f6d00}100%{box-shadow:0 0 0 0 #ff5f6d00}}
+body.reduce-motion .live-dot{animation:none}
+
+/* The Live screen follows the same full-bleed pattern as Templates/Batch
+   (fixed, full viewport, z-index:950 — below the persistent rail's 952,
+   so the rail still sits on top of it), with real content. */
+.live-screen{position:fixed;z-index:950;inset:0;overflow-y:auto;background:radial-gradient(circle at 50% 20%,#28234c 0,transparent 40%),#0e1018}
+.live-screen[hidden]{display:none}
+.live-screen-body{max-width:640px;margin:0 auto;padding:90px 24px 60px}
+.live-screen-body h2{margin:8px 0 26px;font-size:clamp(2rem,5vw,3rem);letter-spacing:-.05em}
+
+/* Diagonal Now Playing / Live Audio toggle. Two plain rectangular buttons
+   carry the real click targets; a skewed pseudo-element layered on top
+   draws the angled seam between them so the visual boundary is diagonal
+   without the hit areas being diagonal too. */
+.live-toggle{position:relative;display:flex;height:52px;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--panel);box-shadow:14px 14px 35px #05060d8c,-7px -7px 22px #32395026}
+.live-toggle-option{flex:1;position:relative;z-index:1;background:transparent;color:var(--muted);font:600 13px 'Space Grotesk',sans-serif;letter-spacing:.01em;transition:color .2s ease}
+.live-toggle-option.selected{color:#fff}
+.live-toggle-option:first-child{padding-right:14px}
+.live-toggle-option:last-child{padding-left:14px}
+.live-toggle-diagonal{position:absolute;z-index:0;top:-6px;bottom:-6px;left:50%;width:46%;transform:translateX(-50%) skewX(-18deg);background:linear-gradient(135deg,var(--accent-2),var(--accent));transition:left .3s cubic-bezier(.2,.8,.2,1)}
+.live-toggle:has(.live-toggle-option[data-live-view="liveaudio"].selected) .live-toggle-diagonal{left:74%}
+.live-toggle:has(.live-toggle-option[data-live-view="nowplaying"].selected) .live-toggle-diagonal{left:26%}
+
+.live-panels{margin-top:28px}
+.live-panel{display:none}
+.live-panel.is-active{display:block}
+
+/* Now Playing: empty state + populated card (art / title / artist). */
+.now-playing-empty{display:grid;justify-items:center;gap:10px;padding:70px 20px;border:1px dashed #3a4258;border-radius:20px;color:var(--muted);text-align:center}
+.now-playing-empty-icon{font-size:30px;opacity:.6}
+.now-playing-empty p{margin:0;color:#dfe3f1;font:600 14px 'Space Grotesk',sans-serif}
+.now-playing-empty small{max-width:320px;font:11px 'DM Mono',monospace}
+.now-playing-card{display:flex;align-items:center;gap:18px;padding:18px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(145deg,#202538,#171a27)}
+.now-playing-card[hidden]{display:none}
+.now-playing-card img{width:88px;height:88px;border-radius:14px;object-fit:cover;background:#11131d}
+.now-playing-meta{display:grid;gap:6px;min-width:0}
+.now-playing-meta strong{font:600 16px 'Space Grotesk',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.now-playing-meta span{color:var(--muted);font:12px 'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Live Audio: start button + canvas, same visual language as the export button. */
+.live-audio-start{width:100%;height:52px;border-radius:16px;background:linear-gradient(135deg,var(--accent-2),var(--accent));box-shadow:inset 1px 1px #ffffff47,0 7px 15px #090b174d;font:600 14px 'Space Grotesk',sans-serif}
+#liveCanvas{display:block;width:100%;aspect-ratio:16/9;border-radius:20px;border:1px solid var(--line)}
+#liveCanvas[hidden]{display:none}
+.live-audio-status{margin:12px 2px 0;color:var(--muted);font:11px 'DM Mono',monospace;min-height:14px}
 .controls, .controls .style-picker, .controls .range-picker, .controls .simple-picker, .controls .size-picker, .controls .colour-picker {
   isolation: auto !important;
 }
@@ -82,8 +153,8 @@ main.presets-open .stage-toggles{display:none !important;}
    soft, blurred blobs that drift slowly around the viewport and cycle
    very slowly between blue, purple and red. */
 .bg-orb{position:fixed;z-index:-1;top:0;left:0;width:56vw;height:56vw;max-width:820px;max-height:820px;border-radius:50%;filter:blur(90px);opacity:.4;pointer-events:none;will-change:transform,background-color;}
-.bg-orb-1{margin:-6vw 0 0 -8vw;animation:bgOrbMove1 55s ease-in-out infinite,bgOrbColour1 40s ease-in-out infinite;}
-.bg-orb-2{margin:32vh 0 0 46vw;animation:bgOrbMove2 65s ease-in-out infinite,bgOrbColour2 45s ease-in-out infinite;}
+.bg-orb-1{margin:-6vw 0 0 -8vw;background:#3d5aff;animation:bgOrbMove1 55s ease-in-out infinite,bgOrbColour1 40s ease-in-out infinite;}
+.bg-orb-2{margin:32vh 0 0 46vw;background:#8a4dff;animation:bgOrbMove2 65s ease-in-out infinite,bgOrbColour2 45s ease-in-out infinite;}
 @keyframes bgOrbMove1{
   0%{transform:translate(0,0)}
   25%{transform:translate(22vw,12vh)}
@@ -185,7 +256,7 @@ html::-webkit-scrollbar-corner {
 /* Burger button: minimal 3-line icon in a small glass tile, top-left,
    always on top so it stays reachable from any screen. Morphs into an X
    while the side panel is open. */
-.burger-toggle{position:fixed;z-index:960;top:18px;left:18px;width:44px;height:44px;display:grid;place-items:center;border:1px solid #ffffff22;border-radius:14px;background:linear-gradient(145deg,#20263a,#12141f);box-shadow:0 10px 26px #05060dcc,inset 1px 1px #ffffff14;backdrop-filter:blur(14px);transition:background .2s ease,box-shadow .2s ease,transform .18s ease}
+.burger-toggle{position:fixed;z-index:960;top:28px;left:12px;width:44px;height:44px;display:grid;place-items:center;border:1px solid #ffffff22;border-radius:14px;background:linear-gradient(145deg,#20263a,#12141f);box-shadow:0 10px 26px #05060dcc,inset 1px 1px #ffffff14;backdrop-filter:blur(14px);transition:background .2s ease,box-shadow .2s ease,transform .18s ease}
 .burger-toggle:hover{background:linear-gradient(145deg,#262d43,#171a27);box-shadow:0 12px 30px #05060dcc,0 0 0 1px #7f6dff40,inset 1px 1px #ffffff22;transform:translateY(-1px)}
 .burger-toggle:active{transform:translateY(0) scale(.94)}
 .burger-toggle[aria-expanded="true"]{background:linear-gradient(145deg,#262d43,#171a27)}
@@ -199,15 +270,45 @@ html::-webkit-scrollbar-corner {
 .side-overlay{position:fixed;z-index:951;inset:0;background:#080a12bd;opacity:0;transition:opacity .22s ease}
 .side-overlay.is-visible{opacity:1}
 .side-overlay[hidden]{display:none !important;pointer-events:none !important}
-.side-panel{position:fixed;z-index:952;top:0;left:0;bottom:0;width:min(250px,80vw);display:flex;flex-direction:column;justify-content:space-between;padding:76px 14px 18px;border-right:1px solid #ffffff1c;background:linear-gradient(180deg,#181c2af2,#12141ff2);backdrop-filter:blur(16px);transform:translateX(-100%);transition:transform .26s cubic-bezier(.2,.8,.2,1)}
-.side-panel.is-visible{transform:translateX(0)}
+/* Persistent rail: collapsed to an icon-only strip by default (always on
+   screen, never hidden), expanding to show labels only while the burger
+   button has it open. Floats a little clear of the top/bottom edges with
+   rounded corners, rather than running flush edge-to-edge. */
+.side-panel{
+  position:fixed;z-index:952;top:14px;left:0;bottom:14px;
+  width:68px;
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding:76px 10px 18px;
+  border:1px solid #ffffff1c;border-left:0;border-radius:0 20px 20px 0;
+  background:linear-gradient(180deg,#181c2af2,#12141ff2);
+  backdrop-filter:blur(16px);
+  overflow:hidden;
+  transform:translateX(0);
+  transition:width .3s cubic-bezier(.2,.8,.2,1), padding .3s cubic-bezier(.2,.8,.2,1);
+}
+.side-panel.expanded{width:min(250px,80vw);padding:76px 14px 18px;}
 .side-panel[hidden]{display:none !important}
 .side-panel-top{display:grid;gap:6px}
-.side-panel-eyebrow{margin:0 0 8px 11px;color:#9b91ff;font:11px 'DM Mono',monospace;letter-spacing:.18em}
-.side-nav-item{display:flex;align-items:center;gap:11px;width:100%;height:44px;padding:0 12px;border-radius:11px;background:transparent;color:#c7cbdb;font:600 13px 'Space Grotesk',sans-serif;text-align:left}
+.side-panel-eyebrow{
+  margin:0 0 8px 11px;color:#9b91ff;font:11px 'DM Mono',monospace;letter-spacing:.18em;
+  opacity:0;transform:translateX(-10px);white-space:nowrap;
+  transition:opacity .16s ease, transform .26s cubic-bezier(.2,.8,.2,1);
+}
+.side-panel.expanded .side-panel-eyebrow{opacity:1;transform:translateX(0);transition-delay:.06s}
+.side-nav-item{display:flex;align-items:center;justify-content:center;gap:11px;width:100%;height:44px;padding:0;border-radius:11px;background:transparent;color:#c7cbdb;font:600 13px 'Space Grotesk',sans-serif;text-align:left;overflow:hidden}
+.side-panel.expanded .side-nav-item{justify-content:flex-start;padding:0 12px}
 .side-nav-item svg{flex:0 0 auto;opacity:.85}
 .side-nav-item:hover{background:#20263a;color:#fff}
 .side-nav-item.selected{background:#262d43;color:#fff;box-shadow:inset 2px 0 var(--accent)}
+/* The label text swipes in from behind the icon as the rail expands, and
+   swipes back out (rather than just popping away) as it collapses — makes
+   the collapse read as "closing" rather than an abrupt cut. */
+.side-nav-item span:last-child{
+  opacity:0;max-width:0;white-space:nowrap;overflow:hidden;
+  transform:translateX(-10px);
+  transition:opacity .16s ease, transform .26s cubic-bezier(.2,.8,.2,1), max-width .3s cubic-bezier(.2,.8,.2,1);
+}
+.side-panel.expanded .side-nav-item span:last-child{opacity:1;max-width:160px;transform:translateX(0);transition-delay:.06s}
 .side-settings{position:relative;margin-top:14px}
 .side-settings::before{content:"";position:absolute;top:-14px;left:0;right:0;height:1px;background:#ffffff14}
 
@@ -238,3 +339,295 @@ html::-webkit-scrollbar-corner {
 
 /* Reduce-motion preference: neutralise transitions/animations app-wide. */
 body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{transition-duration:.001ms !important;animation-duration:.001ms !important;animation-iteration-count:1 !important;scroll-behavior:auto !important}
+
+/* App accent colour customisation, in Settings. Native colour swatches,
+   styled to sit comfortably alongside the app's own controls. */
+.accent-colour-row{display:flex;align-items:flex-end;gap:14px;margin-top:6px}
+.accent-swatch-label{display:flex;flex-direction:column;gap:6px;color:var(--muted);font:10px 'DM Mono',monospace;letter-spacing:.04em}
+.accent-swatch-label input[type=color]{border:1px solid var(--line);border-radius:8px;background:var(--panel);cursor:pointer}
+.accent-reset-btn{height:33px;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:var(--panel-hi);color:var(--text);font:600 11px 'Space Grotesk',sans-serif}
+.accent-reset-btn:hover{background:#2a3049}
+
+/* Keyboard shortcuts overlay, reusing the same dialog shell as the
+   template switch/delete confirmations. */
+.shortcuts-card{width:min(440px,calc(100vw - 48px));text-align:left}
+.shortcuts-list{list-style:none;margin:18px 0 0;padding:0;display:grid;gap:12px}
+.shortcuts-list li{display:flex;align-items:center;gap:14px}
+.shortcuts-list kbd{flex:0 0 auto;min-width:38px;padding:5px 9px;text-align:center;border:1px solid #46506d;border-radius:8px;background:#20263a;color:#e9ecf5;font:600 11px 'DM Mono',monospace;box-shadow:inset 0 -2px #ffffff0d,0 2px 0 #05060d}
+.shortcuts-list span{color:#c7cbdb;font:12px 'Space Grotesk',sans-serif}
+
+/* Export success flourish: a small checkmark that pops in once the render
+   finishes, instead of the screen just quietly closing. */
+.export-checkmark{display:none;place-items:center;width:64px;height:64px;margin:0 auto 18px;border-radius:50%;background:linear-gradient(135deg,var(--accent-2),var(--accent));font-size:32px;color:#fff}
+.export-checkmark.show{display:grid;animation:checkPop .45s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes checkPop{0%{opacity:0;transform:scale(.3)}100%{opacity:1;transform:scale(1)}}
+
+/* A soft breathing glow on the Export button once a track is loaded and
+   it's actually clickable, drawing the eye to the primary action. Uses
+   filter/drop-shadow (not box-shadow) so it doesn't fight the button's
+   own !important box-shadow declaration below. */
+@keyframes exportGlow{0%,100%{filter:drop-shadow(0 0 0 transparent)}50%{filter:drop-shadow(0 0 10px #7f6dff8c)}}
+.actions button#export:not(:disabled){animation:exportGlow 2.6s ease-in-out infinite}
+
+/* Templates screen: a full page (reusing the coming-soon-screen's fixed,
+   full-viewport treatment) holding a scrollable grid of saved looks. */
+.templates-screen{position:fixed;z-index:950;inset:0;overflow-y:auto;background:radial-gradient(circle at 50% 22%,#28234c 0,transparent 42%),#0e1018;padding:90px 24px 60px}
+.templates-screen[hidden]{display:none}
+.templates-body{max-width:1040px;margin:0 auto}
+.templates-header{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:28px}
+.templates-heading{max-width:560px}
+.templates-heading h2{margin:8px 0 10px;font-size:clamp(2rem,5vw,3rem);letter-spacing:-.05em}
+.templates-hint{margin:0;color:var(--muted);line-height:1.55}
+.return-default-btn{flex:0 0 auto;height:42px;padding:0 18px;border:1px solid var(--line);border-radius:13px;background:var(--panel-hi);color:var(--text);font:600 13px 'Space Grotesk',sans-serif;box-shadow:inset 1px 1px #ffffff18;white-space:nowrap}
+.return-default-btn:hover{background:#2a3049}
+.templates-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+
+/* Template cards mirror the style-picker's card shape (same 11px squircle
+   radius). The thumbnail + hover overlay live inside their own inner
+   button (like the style-cards), kept separate from the name/delete row
+   below so no interactive elements end up nested inside one another. */
+.template-card{position:relative;display:block;overflow:hidden;padding:0;background:#111520;border:1px solid #3a4258;border-radius:11px;text-align:left}
+.template-use-trigger{display:block;width:100%;padding:0;position:relative;background:none;border:0;text-align:left}
+.template-use-trigger canvas{display:block;width:100%;aspect-ratio:16/9;transition:filter .25s ease}
+.template-use-trigger:hover canvas,.template-use-trigger:focus-visible canvas{filter:blur(6px) brightness(.55)}
+.template-use-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font:600 13px 'Space Grotesk',sans-serif;letter-spacing:.03em;background:#080a12a3;opacity:0;transition:opacity .2s ease;pointer-events:none}
+.template-use-trigger:hover .template-use-overlay,.template-use-trigger:focus-visible .template-use-overlay{opacity:1}
+.template-card.is-active{border-color:#978cff;box-shadow:0 0 0 1px #978cff}
+.template-name-row{position:relative;display:flex;align-items:center;gap:6px;padding:8px 6px 8px 9px}
+.template-name{flex:1;min-width:0;padding:2px 4px;border:1px solid transparent;border-radius:6px;background:transparent;color:#e9ebf5;font:600 12px 'Space Grotesk',sans-serif;cursor:text}
+.template-name:hover{border-color:#3a4258}
+.template-name:focus{outline:none;border-color:#8f80ff;background:#171b29;cursor:text}
+.template-delete{flex:0 0 auto;width:22px;height:22px;border-radius:7px;background:transparent;color:#8890a6;font-size:15px;line-height:1;opacity:0;transition:opacity .15s ease,color .15s ease,background .15s ease}
+.template-card:hover .template-delete,.template-card:focus-within .template-delete{opacity:1}
+.template-delete:hover{background:#3a2030;color:#ff8f8f}
+
+/* Pin-as-startup and duplicate: same hover-reveal treatment as delete. The
+   pin stays visibly gold once set, even without hovering, so it's always
+   obvious at a glance which template loads on startup. */
+.template-pin,.template-duplicate{flex:0 0 auto;width:22px;height:22px;border-radius:7px;background:transparent;color:#8890a6;font-size:13px;line-height:1;opacity:0;transition:opacity .15s ease,color .15s ease,background .15s ease}
+.template-card:hover .template-pin,.template-card:focus-within .template-pin,.template-card:hover .template-duplicate,.template-card:focus-within .template-duplicate{opacity:1}
+.template-pin:hover{background:#2e2a1a;color:#ffd27a}
+.template-pin.is-pinned{opacity:1;color:#ffd27a}
+.template-duplicate:hover{background:#1c2a3a;color:#7fc7ff}
+
+/* Lightweight toast for confirming save/rename/delete/switch actions
+   without an intrusive modal. */
+.app-toast{position:fixed;z-index:99998;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);max-width:calc(100vw - 40px);padding:11px 18px;border-radius:12px;background:#181c2bf0;color:#e9ecf5;font:600 12px 'Space Grotesk',sans-serif;box-shadow:0 12px 30px #0009;opacity:0;pointer-events:none;transition:opacity .22s ease,transform .22s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app-toast.visible{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* The "+ Save current look" card, styled as an inviting empty-state tile
+   rather than a preview thumbnail. */
+.template-card-new{display:grid;place-items:center;gap:8px;aspect-ratio:16/9;border-style:dashed;color:#bfc4d6}
+.template-card-new:hover{border-color:#8f80ff;background:#1b2134;color:#fff}
+.template-new-icon{font-size:26px;line-height:1;color:#9b8bff}
+.template-card-new .card-name{padding:0;font:600 12px 'Space Grotesk',sans-serif}
+
+/* Switch-template confirmation: same glassy modal treatment as the Settings
+   window, with the two actions rendered as their own distinct boxes. */
+.template-switch-dialog{position:fixed;z-index:980;inset:0;display:grid;place-items:center;padding:24px;background:#080a12bd}
+.template-switch-dialog[hidden]{display:none !important}
+.template-switch-card{width:min(400px,calc(100vw - 48px));padding:24px;border:1px solid #46506d;border-radius:22px;background:linear-gradient(145deg,#252b40,#161a28);box-shadow:0 28px 80px #000b}
+.template-switch-card h2{margin:4px 0 12px;font-size:26px;letter-spacing:-.04em}
+.template-switch-card p:not(.eyebrow){margin:0 0 20px;color:var(--muted);line-height:1.55}
+.dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dialog-box{height:46px;border:1px solid #3d455e;border-radius:12px;background:#20263a;color:#e9ecf5;font:600 13px 'Space Grotesk',sans-serif}
+.dialog-box-cancel:hover{border-color:#565f7d;background:#262d43}
+.dialog-box-switch{border-color:#8f80ff;background:linear-gradient(135deg,var(--accent-2),var(--accent));box-shadow:inset 1px 1px #ffffff47}
+.dialog-box-switch:hover{filter:brightness(1.08)}
+.dialog-box-danger{border-color:#ff6b6b88;background:linear-gradient(135deg,#ff8a6b,#ff4d4d);box-shadow:inset 1px 1px #ffffff47}
+.dialog-box-danger:hover{filter:brightness(1.08)}
+/* Live controls and playback states */
+.now-playing-empty[hidden],.live-audio-start[hidden]{display:none}
+.live-screen-body{max-width:900px}
+.now-playing-card{padding:30px;min-height:180px;background:radial-gradient(ellipse at top right,#7f6dff24,transparent 65%),linear-gradient(145deg,#202538,#171a27)}
+.now-playing-card img{width:132px;height:132px;box-shadow:0 15px 40px #0006}
+.now-playing-meta strong{font-size:24px}
+.live-actions,.live-look-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px}
+.live-actions button,.live-look-controls button,.live-stage-toolbar button{padding:12px 18px;border:1px solid var(--line);border-radius:12px;background:#262b40;color:#eef0ff;transition:background .2s,transform .2s}
+.live-actions button:hover,.live-look-controls button:hover,.live-stage-toolbar button:hover{background:#3b365d;transform:translateY(-2px)}
+.live-actions button:last-child{background:linear-gradient(135deg,var(--accent-2),var(--accent))}
+.live-stage{position:relative;margin-top:18px;border:1px solid var(--line);border-radius:20px;overflow:hidden;background:#0e1018}
+#liveCanvas{border:0;border-radius:0}
+.live-stage-toolbar{position:absolute;top:16px;left:18px;right:18px;display:flex;justify-content:space-between;align-items:center;gap:12px;font:12px 'DM Mono',monospace}
+#liveSignal{padding:10px 14px;background:#111521cc;border-radius:999px}
+.live-meter{position:absolute;bottom:0;left:0;right:0;height:5px;background:#ffffff12}
+.live-meter span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#5ce1c3);transition:width .12s}
+.live-look-controls label{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--muted)}
+.live-look-controls select{padding:10px 12px;border-radius:10px;background:#202538;color:#eef0ff;border:1px solid var(--line)}
+.live-look-controls input[type=color]{width:42px;height:38px;padding:3px;background:#202538;border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.live-look-controls button:disabled{opacity:.45;cursor:default}
+.live-stage:fullscreen{width:100vw;height:100vh;border:0;border-radius:0}
+.live-stage:fullscreen #liveCanvas{width:100%;height:100%;object-fit:contain}
+.live-stage.ui-idle{cursor:none}
+.live-stage.ui-idle .live-stage-toolbar{opacity:0;pointer-events:none}
+.live-stage-toolbar{transition:opacity .3s}
+@media(max-width:600px){.now-playing-card{padding:18px;gap:12px}.now-playing-card img{width:80px;height:80px}.now-playing-meta strong{font-size:18px}.live-stage-toolbar{top:8px;left:8px;right:8px;font-size:10px}.live-stage-toolbar button{padding:8px}}
+/* Cover-first desktop media player */
+.now-playing-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;padding:22px;width:100%;box-sizing:border-box;border-radius:28px;background:linear-gradient(150deg,#292c43,#161a29);box-shadow:0 24px 70px #0004}
+.media-art{grid-column:1/-1;aspect-ratio:1;position:relative;display:grid;place-items:center;border-radius:20px;overflow:hidden;background:radial-gradient(circle at 35% 20%,#625493,#252b40 75%);font-size:90px;color:#ffffff55}
+.media-art>span{position:absolute}.now-playing-card .media-art img{width:100%;height:100%;border-radius:0;object-fit:cover;position:relative;box-shadow:none}
+.media-art img[hidden]{display:none}
+.now-playing-meta{grid-column:1/-1;gap:7px}.now-playing-meta strong{font-size:22px;white-space:normal;line-height:1.2}.now-playing-meta .eyebrow{font-size:9px;letter-spacing:.15em;color:#aa9ae6}
+#nowPlayingState{font-size:10px;color:#a79bc9}
+.media-timeline{grid-column:1/-1;min-width:0}.media-timeline input{appearance:none;width:100%;height:5px;border-radius:99px;background:linear-gradient(to right,var(--accent) var(--progress,0%),#ffffff20 var(--progress,0%));cursor:pointer;margin:10px 0 12px}.media-timeline input::-webkit-slider-thumb{appearance:none;width:12px;height:12px;border-radius:50%;background:#eee8ff}.media-timeline input:disabled{cursor:default;opacity:.45}.media-timeline>div{display:flex;justify-content:space-between;color:var(--muted);font:11px 'DM Mono',monospace}
+.media-transport{grid-column:1/-1;display:flex;justify-content:center;align-items:center;gap:16px;padding:4px 0}
+.media-transport button{width:42px;height:42px;border-radius:14px;background:#ffffff09;color:#eae5ff;font-size:24px;border:1px solid #ffffff0a}.media-transport #mediaPlayPause{width:56px;height:56px;border-radius:20px;background:linear-gradient(140deg,var(--accent-2),var(--accent));box-shadow:0 6px 20px #7f6dff30;font-size:22px}.media-transport button:disabled{opacity:.3;cursor:default}.media-transport button:hover:enabled{filter:brightness(1.2)}
+#liveNowPlaying .now-playing-card{max-width:360px;margin:0 auto}
+.live-panels.has-media{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:24px;align-items:start}.live-panels.has-media #liveAudioPanel{grid-column:1;grid-row:1}.live-panels.has-media>.now-playing-card{grid-column:2;grid-row:1}.live-panels.has-media #liveNowPlaying{display:none}
+.live-screen-body:has(.has-media){max-width:1250px}
+.live-stage-toolbar.stage-toggles{top:12px;right:12px;left:auto;display:flex}.live-stage-toolbar .stage-toggle{padding:0;width:34px;height:34px;background:#171b29cc;border-radius:10px}.live-stage-toolbar .stage-toggle:hover{transform:none}
+#nowPlayingStatus{transition:opacity .5s}#nowPlayingStatus.fading{opacity:0}
+@media(max-width:850px){.live-panels.has-media{grid-template-columns:1fr}.live-panels.has-media>.now-playing-card{grid-column:1;grid-row:2;max-width:360px;justify-self:center}}
+/* Keep the media play/pause button consistent with the Create stage. */
+.media-transport #mediaPlayPause{height:29px;width:auto;min-width:35px;padding:0 8px;border-radius:999px;background:#262d43;color:#f6f7fb;font:11px 'Space Grotesk',sans-serif;box-shadow:none}
+.media-transport #mediaPlayPause:hover:enabled{background:#394260;filter:none}
+/* Live listening lounge: soft artwork colour and glass surfaces. */
+.live-screen{background:radial-gradient(ellipse at 10% 12%,color-mix(in srgb,var(--album-glow,#655094) 20%,transparent),transparent 55%),radial-gradient(ellipse at 90% 85%,color-mix(in srgb,var(--album-glow-secondary,#3c617b) 16%,transparent),transparent 55%),#0c0f18;transition:background 2s}
+.live-screen-body h2{margin-bottom:24px;letter-spacing:-.06em}
+.now-playing-card{border:1px solid #ffffff14;background:linear-gradient(145deg,#24293bea,#131826ef);box-shadow:0 25px 70px #0005,inset 0 1px #ffffff0a}
+.media-art{box-shadow:0 12px 32px #0005;border:1px solid #ffffff12}
+.live-stage{box-shadow:0 20px 65px #0006;border-color:#ffffff16}
+.live-look-controls{padding:14px 16px;border:1px solid #ffffff0d;border-radius:18px;background:#161c2b99;backdrop-filter:blur(18px)}
+.album-colour-toggle input{accent-color:var(--accent);width:14px;height:14px}
+.media-transport{gap:6px;padding:6px 8px;width:max-content;justify-self:center;border:1px solid #ffffff24;border-radius:999px;background:#111522d9;backdrop-filter:blur(12px);box-shadow:0 8px 24px #0008}
+.media-transport button,.media-transport #mediaPlayPause{height:29px;width:auto;min-width:35px;padding:0 8px;border:0;border-radius:999px;background:#262d43;color:#f6f7fb;font:11px 'Space Grotesk',sans-serif;box-shadow:none}
+.media-transport button:hover:enabled,.media-transport #mediaPlayPause:hover:enabled{background:#394260;filter:none}
+.media-transport button{position:relative}
+/* Convenience tools use the app's existing compact controls. */
+.ease-tools{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:9px 0}
+.ease-tools button,.ease-tools select,.ease-library-tools select{padding:7px 10px;border-radius:10px;border:1px solid var(--line);background:#22283b;color:#e9ecf8;font:11px 'Space Grotesk',sans-serif}
+.ease-tools button:disabled{opacity:.35;cursor:default}.ease-tools label{display:flex;gap:7px;align-items:center;color:var(--muted);font-size:11px}.ease-tools input[type=checkbox]{accent-color:var(--accent)}
+.ease-seek{position:absolute;bottom:76px;left:24px;right:24px;z-index:3}.ease-seek input{appearance:none;width:100%;height:4px;border-radius:999px;background:linear-gradient(to right,var(--accent) var(--progress,0%),#ffffff25 var(--progress,0%));cursor:pointer}.ease-seek input::-webkit-slider-thumb{appearance:none;width:11px;height:11px;border-radius:50%;background:#eee8ff}.ease-seek input:disabled{opacity:.25;cursor:default}.stage.ui-idle .ease-seek{opacity:0;pointer-events:none}
+.ease-library-tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 22px}.ease-library-tools input{flex:1;min-width:180px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:#1b2031;color:#eff1fa}.ease-library-tools span{font-size:11px;color:var(--muted)}.template-card[hidden]{display:none!important}
+.ease-actions{position:fixed;bottom:16px;right:18px;z-index:954;padding:10px 14px;border:1px solid #ffffff1c;border-radius:14px;background:#1c2235ee;color:#dde3f7;font-size:11px;box-shadow:0 8px 24px #0005}.ease-actions:hover{background:#343c56}
+#easePalette{padding:22px;width:min(520px,calc(100vw - 40px));max-height:75vh;border:1px solid #ffffff25;border-radius:22px;background:#171d2d;color:#edf0fb;box-shadow:0 30px 100px #0009}#easePalette::backdrop{background:#050810a6;backdrop-filter:blur(6px)}.ease-palette-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.ease-palette-heading button{background:transparent;color:var(--muted);font-size:22px}#easeSearch{width:100%;padding:13px;border:1px solid var(--line);border-radius:12px;background:#0e1422;color:#edf0fb;margin-bottom:12px}#easeResults{display:grid;gap:4px;max-height:45vh;overflow:auto}#easeResults button{display:flex;align-items:center;justify-content:space-between;text-align:left;padding:12px;border-radius:10px;background:transparent;color:#dce2f5;font-size:12px}#easeResults button:hover,#easeResults button:focus-visible{background:#303850}#easeResults kbd{font:10px 'DM Mono',monospace;color:#8f9ab6}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+body:has(.stage:fullscreen) .ease-actions,body:has(.live-stage:fullscreen) .ease-actions{display:none}
+/* Compact Create controls: edit actions stay tucked into the heading. */
+.intro-tools{display:flex;align-items:center;gap:18px}.intro-tools p{margin:0}.ease-edit{position:relative;z-index:50;flex-shrink:0}.ease-edit summary{display:flex;align-items:center;gap:20px;list-style:none;cursor:pointer;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:#e9ecf8;font-size:12px}.ease-edit summary::-webkit-details-marker{display:none}.ease-edit summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.ease-edit-menu{position:absolute;right:0;top:calc(100% + 8px);display:grid;gap:4px;width:240px;padding:8px;border:1px solid #ffffff20;border-radius:16px;background:#1b2133;box-shadow:0 14px 40px #0008}.ease-edit-menu button{display:flex;justify-content:space-between;gap:16px;text-align:left;padding:11px 12px;border-radius:9px;background:transparent;color:#e9ecf8;font-size:12px}.ease-edit-menu button:hover:enabled{background:#303950}.ease-edit-menu button:disabled{opacity:.35}.ease-edit-menu kbd{color:var(--muted);font:10px 'DM Mono',monospace}
+.ease-speed-picker{display:grid;gap:5px;min-width:0}.ease-speed-picker select{appearance:none;width:100%;height:33px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:#e9ecf8;font:12px 'Space Grotesk',sans-serif}
+body main:not(.controls-left) .options>.ease-speed-picker{grid-column:2;grid-row:3}
+body main:not(.controls-left) .options>.simple-picker[data-picker=response]{grid-column:3;grid-row:3}
+body main:not(.controls-left) #responseToggle{gap:4px;padding:0 7px;overflow:hidden}body main:not(.controls-left) #responseLabel{overflow:hidden;text-overflow:ellipsis;font-size:10px}
+.preview-controls label.ease-loop-control{position:relative;margin:0;padding:0;border:0;width:29px;height:29px;display:grid;place-items:center;border-radius:999px;background:#262d43;color:#aab4cf;cursor:pointer;flex-shrink:0}.ease-loop-control input{position:absolute;inset:0;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}.ease-loop-control:has(input:checked){background:#514176;color:#f0e7ff;box-shadow:inset 0 0 0 1px #b8a0ff55}.ease-loop-control:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:3px}.ease-loop-control:hover{background:#394260}.ease-loop-control:has(input:disabled){opacity:.4;cursor:default}
+#exportScreen #easeLoopControl{display:none}
+@media(max-width:700px){.intro-tools{gap:10px}.intro-tools p{display:none}}
+/* App chrome: Edit is anchored at the top-left, above the content. */
+:root{--window-bar-height:38px}
+body{padding-top:var(--window-bar-height)}
+.window-bar{position:fixed;inset:0 0 auto;height:var(--window-bar-height);z-index:200000;display:flex;align-items:center;gap:12px;padding-left:10px;background:linear-gradient(90deg,#171b2c,#121623);border-bottom:1px solid #ffffff12;user-select:none}
+.window-drag{flex:1;height:100%;display:flex;align-items:center;gap:9px;-webkit-app-region:drag;app-region:drag;color:#969fb9;font:11px 'Space Grotesk',sans-serif}.window-mark{color:var(--accent);font-size:18px}
+.window-bar .ease-edit{position:relative;z-index:1;-webkit-app-region:no-drag;app-region:no-drag}.window-bar .ease-edit summary{padding:5px 10px;border-color:transparent;border-radius:7px;background:transparent;font-size:11px;height:28px;box-sizing:border-box}.window-bar .ease-edit summary:hover,.window-bar .ease-edit[open] summary{background:#ffffff0b}.window-bar .ease-edit-menu{left:0;right:auto;top:calc(100% + 6px);-webkit-app-region:no-drag;app-region:no-drag}
+.window-buttons{height:100%;display:flex;-webkit-app-region:no-drag;app-region:no-drag}.window-buttons[hidden]{display:none}.window-buttons button{height:100%;width:46px;display:grid;place-items:center;border-radius:0;background:transparent;color:#bec6dd}.window-buttons button:hover{background:#ffffff10}.window-buttons #windowClose:hover{background:#cb4058;color:white}
+.burger-toggle{top:calc(28px + var(--window-bar-height))}.side-panel{top:calc(14px + var(--window-bar-height))}
+.live-screen,.templates-screen,.coming-soon-screen{top:var(--window-bar-height)}
+.ease-speed-picker select{box-sizing:border-box;min-height:40px;height:40px;background-color:var(--panel);padding:0 24px 0 10px;background-image:linear-gradient(45deg,transparent 50%,#aeb5cb 50%),linear-gradient(135deg,#aeb5cb 50%,transparent 50%);background-position:calc(100% - 14px) 17px,calc(100% - 9px) 17px;background-size:5px 5px;background-repeat:no-repeat}
+body:has(:fullscreen) .window-bar{display:none}
+/* One control typeface across native dropdowns, custom menus and searches. */
+:root{--control-font:'Space Grotesk',sans-serif}
+body select,body select option,body input[type=search],body .style-toggle,body .range-toggle,body .colour-toggle,body .simple-option,body .style-menu button,body .size-menu button,body .colour-menu button,body .range-menu button,body .ease-edit-menu button,body .ease-edit summary{font-family:var(--control-font);font-size:12px;font-weight:400;letter-spacing:normal}
+body input[type=search]::placeholder{font-family:var(--control-font);font-size:12px;font-weight:400}
+.ease-library-tools button{padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#22283b;color:#e9ecf8;font:12px var(--control-font)}
+.ease-library-tools button[hidden]{display:none}
+/* Workspace navigation: one icon system and stable alignment in both sizes. */
+.side-panel{box-sizing:border-box;left:8px;top:calc(var(--window-bar-height) + 12px);bottom:12px;width:60px;padding:66px 7px 12px;border:1px solid #ffffff13;border-radius:18px;background:linear-gradient(165deg,#1d2232f5,#121725f5);box-shadow:0 12px 32px #05081055,inset 0 1px #ffffff06;backdrop-filter:blur(20px);overflow:hidden;transition:width .25s ease,padding .25s ease}
+.side-panel.expanded{width:226px;padding:66px 7px 12px}
+.burger-toggle{box-sizing:border-box;top:calc(var(--window-bar-height) + 22px);left:16px;width:44px;height:40px;border:1px solid #ffffff12;border-radius:12px;background:#252c3e;box-shadow:inset 0 1px #ffffff07;color:#b9c2d8;display:grid;place-items:center}
+.burger-toggle:hover{background:#30394f;box-shadow:inset 0 1px #ffffff0b;transform:none}.burger-toggle[aria-expanded=true]{background:#30394f;color:#e7e1ff}.burger-toggle svg{display:block;flex:none}
+.side-panel-top{gap:7px;min-width:0}
+.side-panel-eyebrow{height:16px;margin:0 0 5px 13px;font:500 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#7f8aa5;transform:none}.side-panel.expanded .side-panel-eyebrow{transform:none}
+.side-nav-item,.side-panel.expanded .side-nav-item{box-sizing:border-box;display:flex;justify-content:flex-start;align-items:center;gap:13px;height:44px;min-height:44px;width:100%;padding:0 12px;border:1px solid transparent;border-radius:12px;color:#9eabc4;font:500 12px 'Space Grotesk',sans-serif;overflow:hidden;transition:background .18s,color .18s,border-color .18s}
+.side-nav-item svg{display:block;flex:0 0 20px;width:20px;height:20px;stroke-width:1.8;opacity:1;overflow:visible}
+.side-nav-item:hover{background:#293146;color:#e8edf9;border-color:#ffffff08}.side-nav-item.selected{color:#e7ddff;background:linear-gradient(125deg,color-mix(in srgb,var(--accent) 24%,#1c2335),#252a42);border-color:color-mix(in srgb,var(--accent) 35%,transparent);box-shadow:inset 0 1px #ffffff08}.side-nav-item.selected svg{color:color-mix(in srgb,var(--accent) 55%,#e6ddff)}
+.side-nav-item span:last-child{flex:1;min-width:0;max-width:0;opacity:0;transform:translateX(-5px)}.side-panel.expanded .side-nav-item span:last-child{max-width:160px;opacity:1;transform:none}
+.side-settings{margin-top:22px}.side-settings::before{top:-12px;left:6px;right:6px;background:#ffffff0b}
+.side-nav-item:focus-visible,.burger-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+/* Keep collapsed navigation tiles inside the rail and centre every icon. */
+.side-panel:not(.expanded) .side-panel-top{grid-template-columns:minmax(0,1fr)}
+.side-panel:not(.expanded) .side-nav-item{width:44px;max-width:100%;height:44px;padding:0;gap:0;justify-content:center;justify-self:center;flex-shrink:0}
+.side-panel:not(.expanded) .side-nav-item span:last-child{display:none}
+.side-panel:not(.expanded) .side-settings{align-self:center}
+/* Centre Now Playing actions and let each selected tab fill its outer edge. */
+#liveNowPlaying .live-actions{justify-content:center}
+#liveNowPlaying #nowPlayingStatus{text-align:center}
+.live-toggle .live-toggle-diagonal{top:0;bottom:0;left:0;width:100%;transform:none;clip-path:polygon(0 0,50% 0,48% 100%,0 100%);transition:clip-path .3s cubic-bezier(.2,.8,.2,1)}
+.live-toggle:has(.live-toggle-option[data-live-view="nowplaying"].selected) .live-toggle-diagonal{left:0;clip-path:polygon(0 0,50% 0,48% 100%,0 100%)}
+.live-toggle:has(.live-toggle-option[data-live-view="liveaudio"].selected) .live-toggle-diagonal{left:0;clip-path:polygon(52% 0,100% 0,100% 100%,50% 100%)}
+/* A small spring overshoot softens the divider's change between tabs. */
+.live-toggle .live-toggle-diagonal{transition:clip-path .6s cubic-bezier(.22,.8,.3,1.09);will-change:clip-path}
+.live-toggle-option{transition:color .25s ease}
+@media(prefers-reduced-motion:reduce){.live-toggle .live-toggle-diagonal{transition:none;will-change:auto}}
+body.reduce-motion .live-toggle .live-toggle-diagonal{transition:none;will-change:auto}
+/* Animate the complete tab pill when its selected option changes. */
+.live-toggle .live-toggle-diagonal{transition:clip-path .3s ease;will-change:auto}
+body.reduce-motion .live-toggle{animation:none!important}
+@media(prefers-reduced-motion:reduce){.live-toggle{animation:none!important}.live-toggle .live-toggle-diagonal{transition:none}}
+
+/* Animate the actual narrow/wide Live layout instead of scaling the tab bar. */
+.live-screen-body{transition:max-width .65s cubic-bezier(.22,.78,.3,1.045)}
+.live-toggle{animation:none;transform:none}
+@media(prefers-reduced-motion:reduce){.live-screen-body{transition:none}}
+body.reduce-motion .live-screen-body{transition:none}
+/* Fullscreen-only player controls and compact overlay. */
+.fullscreen-player-option{display:none}
+.live-stage:fullscreen .fullscreen-player-option{display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid #ffffff1c;border-radius:12px;background:#171b29e8;color:#cbd2e5;font:11px 'Space Grotesk',sans-serif}
+.fullscreen-player-option select{padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:#252c40;color:#e9ecf8;font:12px var(--control-font)}
+.live-stage:fullscreen>.now-playing-card{position:absolute;z-index:4;right:24px;bottom:24px;width:min(430px,calc(100vw - 48px));max-height:calc(100vh - 100px);overflow:auto;margin:0;padding:18px;grid-template-columns:72px minmax(0,1fr);gap:12px 16px;border-radius:20px;background:#171d2de8;backdrop-filter:blur(18px);box-shadow:0 12px 40px #0006;transition:opacity .3s ease,transform .3s ease}
+.live-stage:fullscreen>.now-playing-card .media-art{grid-column:1;grid-row:1;width:72px;aspect-ratio:1;border-radius:12px;font-size:28px}
+.live-stage:fullscreen>.now-playing-card .now-playing-meta{grid-column:2;grid-row:1}.live-stage:fullscreen>.now-playing-card .now-playing-meta strong{font-size:16px;line-height:1.3}
+.live-stage:fullscreen>.now-playing-card .media-timeline{grid-column:1/-1}.live-stage:fullscreen>.now-playing-card .media-transport{grid-column:1/-1}
+.live-stage:fullscreen.ui-idle[data-player-mode=auto]>.now-playing-card:not(:hover):not(:focus-within){opacity:0;transform:translateY(8px);pointer-events:none}
+.live-stage:fullscreen[data-player-mode=hidden]>.now-playing-card{display:none}
+.live-stage:fullscreen:has(.now-playing-card:hover),.live-stage:fullscreen:has(.now-playing-card:focus-within){cursor:auto}
+.live-stage:fullscreen .live-stage-toolbar:focus-within,.live-stage:fullscreen .live-stage-toolbar:hover{opacity:1;pointer-events:auto}
+/* Blank card areas can be dragged while the controls retain their behaviour. */
+.live-stage:fullscreen>.now-playing-card{background:#171d2dc9;user-select:none;touch-action:none}
+.live-stage:fullscreen.ui-idle>.now-playing-card.player-dragging{opacity:1;transform:none;pointer-events:auto}
+.live-stage:fullscreen.ui-idle>.now-playing-card.player-returning{opacity:1;pointer-events:auto;transform:none}
+.media-transport #mediaBackTrack,.media-transport #mediaSkipTrack{display:grid;place-items:center}
+/* Cover art expands into an isolated image over a soft, dismissible backdrop. */
+button.media-art{padding:0;width:100%;color:#ffffff55;cursor:zoom-in;font-size:90px}
+button.media-art:disabled{cursor:default;opacity:1}
+button.media-art:enabled:hover img{filter:brightness(1.04)}
+.album-art-viewer{padding:0;border:0;border-radius:20px;background:transparent;overflow:visible;max-width:calc(100vw - 64px);max-height:calc(100vh - 64px);box-shadow:0 30px 100px #0008}
+.album-art-viewer[open]{animation:albumArtIn .3s cubic-bezier(.2,.75,.3,1) both}
+.album-art-viewer img{display:block;width:auto;height:auto;max-width:calc(100vw - 64px);max-height:calc(100vh - 64px);object-fit:contain;border-radius:20px}
+.album-art-viewer::backdrop{background:#080b16a6;backdrop-filter:blur(16px);animation:albumBackdropIn .3s ease both}
+.album-art-viewer.closing{animation:albumArtOut .22s ease both}
+.album-art-viewer.closing::backdrop{animation:albumBackdropOut .22s ease both}
+@keyframes albumArtIn{from{opacity:0;transform:translateY(12px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes albumArtOut{from{opacity:1;transform:scale(1)}to{opacity:0;transform:translateY(8px) scale(.96)}}
+@keyframes albumBackdropIn{from{opacity:0}to{opacity:1}}
+@keyframes albumBackdropOut{from{opacity:1}to{opacity:0}}
+@media(prefers-reduced-motion:reduce){.album-art-viewer[open],.album-art-viewer::backdrop{animation:none}}
+body.reduce-motion .album-art-viewer,body.reduce-motion .album-art-viewer::backdrop{animation:none}
+/* Open cover art large, with wheel zoom contained inside the image window. */
+.album-art-viewer{overflow:hidden;max-width:calc(100vw - 48px);max-height:calc(100vh - 48px)}
+.album-art-viewer img{width:min(84vw,84vh);height:auto;max-width:calc(100vw - 48px);max-height:calc(100vh - 48px);transform-origin:center;transition:transform .16s ease-out;will-change:transform}
+body.reduce-motion .album-art-viewer img{transition:none}
+@media(prefers-reduced-motion:reduce){.album-art-viewer img{transition:none}}
+/* The image defines the dialog bounds, including during wheel zoom. */
+.album-art-viewer{width:max-content;height:max-content;max-width:calc(100vw - 48px);max-height:calc(100vh - 48px);overflow:hidden}
+.album-art-viewer img{width:auto;height:auto;max-width:none;max-height:none;transform:none;transition:width .16s ease-out,height .16s ease-out;will-change:auto}
+/* Match the cover-art viewer's backdrop for app preferences and customisation. */
+.settings-window,.preset-window{background:#080b16a6;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+/* Recording stays compact on the stage, with setup and review in subwindows. */
+.record-dialog{width:min(460px,calc(100vw - 48px));padding:24px;border:1px solid #ffffff20;border-radius:24px;background:#1a2032;color:#e8edf9;box-shadow:0 25px 90px #0008}
+.record-dialog::backdrop{background:#080b16a6;backdrop-filter:blur(16px)}
+.record-dialog[open]{animation:albumArtIn .25s ease both}
+.record-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}.record-heading h2{margin:0;font:600 22px 'Space Grotesk',sans-serif}.record-heading button{background:transparent;color:#aeb9d3;font-size:24px}
+.record-options{display:flex;gap:16px}.record-options label{flex:1;display:grid;gap:8px;color:#aeb9d3;font-size:12px}.record-dialog select{height:38px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:#252c40;color:#e9ecf8;font:12px var(--control-font)}
+.record-art-option{display:flex;align-items:center;gap:8px;margin:20px 0;font-size:12px;color:#c8d0e3}.record-art-option input{accent-color:var(--accent)}
+.record-location{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:12px;color:#aeb9d3}.record-dialog button:not(.record-heading button){padding:10px 14px;border:1px solid #ffffff18;border-radius:11px;background:#2a3248;color:#eef1ff;font:12px 'Space Grotesk',sans-serif}
+.record-dialog button.record-primary{background:linear-gradient(135deg,var(--accent-2),var(--accent))}.record-dialog #recordStart{width:100%;margin-top:12px}.record-dialog p[role=status]{color:#aeb9d3;font-size:12px;line-height:1.6}.record-dialog button:disabled{opacity:.5}
+.record-preview{width:min(760px,calc(100vw - 48px));max-height:85vh;overflow:auto}.record-preview video{display:block;width:100%;max-height:55vh;background:#080c16;border-radius:14px}.record-preview-actions{display:flex;justify-content:flex-end;gap:10px}
+.live-recording-bar{position:absolute;z-index:5;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:12px;padding:8px 12px;border:1px solid #ffffff20;border-radius:14px;background:#141a2ce8;backdrop-filter:blur(12px);color:#e8edf9;font:12px 'Space Grotesk',sans-serif}.live-recording-bar[hidden]{display:none}.live-recording-bar button{padding:7px 12px;border-radius:9px;background:#303950;color:#e9ecf8;font-size:12px}.record-indicator{width:7px;height:7px;border-radius:50%;background:#ff687b}.live-recording-bar.paused .record-indicator{background:#e7b75e}
+.live-stage:fullscreen.ui-idle .live-recording-bar:not(:hover):not(:focus-within){opacity:0;pointer-events:none}.live-recording-bar{transition:opacity .25s}
+/* Both navigation groups stay within the rail, including long expanded labels. */
+.side-panel-top,.side-panel-bottom{width:100%;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:7px}
+.side-panel-bottom{position:relative;padding-top:16px;margin-top:20px}
+.side-panel-bottom::before{content:"";position:absolute;top:0;left:6px;right:6px;height:1px;background:#ffffff0b}
+.side-panel-bottom .side-settings{margin-top:0}.side-panel-bottom .side-settings::before{display:none}
+.side-panel .side-nav-item{min-width:0;max-width:100%}
+.side-panel.expanded .side-nav-item span:last-child{display:block;flex:1 1 0;min-width:0;max-width:none;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+/* Hints remain readable even next to the window edges. */
+.hint-tip{max-width:calc(100vw - 16px);box-sizing:border-box;white-space:normal;overflow-wrap:anywhere;text-align:center}
