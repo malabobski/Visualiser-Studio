@@ -1,3 +1,6 @@
+const ComplexStyles = require('./complex-styles');
+const MidiEngine = require('./midi-engine');
+const ParameterAutomation = require('./parameter-automation');
 const { createCanvas } = require('@napi-rs/canvas');
 const FFT = require('fft.js');
 const { spawn } = require('child_process');
@@ -27,7 +30,7 @@ const DEFAULT_PARAMS = {
 };
 
 function resolveParams(style, provided) {
-  const defaults = DEFAULT_PARAMS[style] || DEFAULT_PARAMS.bars;
+  const defaults = ComplexStyles.specs[style]?.map(p=>p[3]) || DEFAULT_PARAMS[style] || DEFAULT_PARAMS.bars;
   const clean = Array.isArray(provided) ? provided : [];
   return defaults.map((fallback, i) => (typeof clean[i] === 'number' && Number.isFinite(clean[i]) ? clean[i] : fallback));
 }
@@ -43,7 +46,8 @@ async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'f
   // that range has a real particle to draw, matching the live preview.
   const particles = Array.from({ length: 300 }, (_, i) => ({ x: (i * 37 % 157) / 157, y: (i * 91 % 151) / 151, s: .7 + i % 3, v: .04 + (i % 7) * .018 }));
   const style = settings.style;
-  const [p0, p1, p2] = resolveParams(style, settings.params);
+  const resolvedParams = resolveParams(style, settings.params);
+  const automation = ParameterAutomation.clean(settings.automation);
   // VP9 (video) + Opus (audio) inside a .webm file: a high-quality, royalty-free
   // pairing that doesn't require the GPL-only libx264 encoder.
   // "-crf 28 -b:v 0" tells VP9 to aim for a fixed quality level rather than a
@@ -58,6 +62,8 @@ async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'f
     }
   };
   for (let frame = 0; frame < totalFrames; frame++) {
+    const frameParams=resolvedParams.map((base,index)=>ParameterAutomation.evaluate(automation.find(t=>t.index===index),frame/fps,base,(ComplexStyles.specs[style]||ParameterAutomation.basicSpecs[style])?.[index]));
+    const [p0,p1,p2]=frameParams;
     const centre = Math.floor(frame * sampleRate / fps), start = centre - fftSize / 2;
     for (let i = 0; i < fftSize; i++) { const sample = samples[start + i] || 0; source[i] = sample * (.5 - .5 * Math.cos(Math.PI * 2 * i / (fftSize - 1))); }
     fft.realTransform(spectrum, source);
@@ -73,7 +79,8 @@ async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'f
     const w = settings.width, h = settings.height, cx = w / 2, cy = h / 2, unit = Math.min(w, h), energyAvg = energy / values.length;
     ctx.fillStyle = settings.background; ctx.fillRect(0, 0, w, h);
 
-    if (style === 'bars' || style === 'mirror') {
+    if (ComplexStyles.paint(ctx,w,h,values,energyAvg,style,frame/fps,frameParams,settings.design||{})) {
+    } else if (style === 'bars' || style === 'mirror') {
       const mirror = style === 'mirror', count = Math.max(1, Math.round(p1)), gap = w / count, heightScale = p0, gapScale = p2;
       for (let i = 0; i < count; i++) {
         const v = values[Math.floor(i / count * values.length)], barH = Math.max(3, v * h * heightScale), x = i * gap;
@@ -200,6 +207,7 @@ async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'f
       }
     }
 
+    if(settings.midi?.enabled!==false&&settings.midi?.data){if(settings.midi.layer==='replace'){ctx.fillStyle=settings.background;ctx.fillRect(0,0,settings.width,settings.height);}MidiEngine.paint(ctx,settings.width,settings.height,frame/fps,settings.midi,{style,values,params:frameParams});}
     const image = ctx.getImageData(0, 0, settings.width, settings.height); await write(encoder.stdin, Buffer.from(image.data.buffer));
     reportProgress(frame);
   }

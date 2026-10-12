@@ -1,0 +1,48 @@
+/* Shared control rhythm; transport controls and window chrome retain their sizes. */
+:root{--ui-control-height:40px;--ui-radius:11px;--ui-border:#ffffff20;--ui-muted:#a4afc7;--ui-surface:#252c40}
+button,input,select,textarea{font-family:var(--control-font,'Space Grotesk',sans-serif)}
+button:not(:disabled){cursor:pointer}
+button:disabled{cursor:default}
+.actions button,.live-look-controls>button,.now-playing-actions>button,.menu-default,.accent-reset-btn,.record-dialog button:not(.record-heading button),.exit-actions button{box-sizing:border-box;min-height:var(--ui-control-height);border-radius:var(--ui-radius);font:500 12px var(--control-font);padding:10px 14px}
+.unified-select button.unified-toggle,.style-toggle,.range-toggle,.colour-toggle{box-sizing:border-box;height:var(--ui-control-height);min-height:var(--ui-control-height);border-radius:var(--ui-radius)}
+.simple-menu,.unified-menu{border-radius:13px;padding:6px;border:1px solid var(--ui-border);background:#20263a;box-shadow:0 14px 35px #0007}
+.simple-menu .simple-option,.unified-menu .unified-option{min-height:31px;border-radius:8px;font:500 12px var(--control-font)}
+.simple-menu .simple-option.selected,.unified-menu .unified-option[aria-selected=true]{background:#3b415b;box-shadow:inset 2px 0 #9182ff}
+.settings-card,.preset-card,.record-dialog,.exit-dialog{border-color:var(--ui-border);border-radius:24px}
+.preset-heading h2,.record-heading h2,.exit-dialog h2{font:600 22px 'Space Grotesk',sans-serif;letter-spacing:-.03em}
+.settings-row small,.live-customise-dialog small,.record-dialog p[role=status]{font:11px/1.6 var(--control-font);color:var(--ui-muted)}
+.live-look-controls{gap:12px;align-items:end;flex-wrap:wrap}
+.live-look-controls>label{gap:6px;min-width:100px}
+.live-effects>summary{box-sizing:border-box;min-height:40px;display:flex;align-items:center;gap:12px;border-radius:var(--ui-radius)}
+.live-effects>summary::after{content:'⌄';color:var(--ui-muted)}
+.live-effects>summary::-webkit-details-marker{display:none}
+.live-effects-menu{border-radius:13px;background:#20263a}
+.settings-select-label,.live-look-controls>label,.option-label{font-family:var(--control-font);font-size:11px;letter-spacing:0}
+.preset-card{box-sizing:border-box;max-height:calc(100vh - 48px);overflow:auto}
+.exit-dialog{box-sizing:border-box;width:min(420px,calc(100vw - 40px));padding:26px;background:#1a2032;color:#e8edf9;border:1px solid var(--ui-border);box-shadow:0 25px 90px #0008}
+.exit-dialog::backdrop{background:#080b16a6;backdrop-filter:blur(16px)}
+.exit-dialog h2{margin:8px 0 12px}.exit-dialog #exitMessage{font:13px/1.7 var(--control-font);color:#adb9d3;margin-bottom:24px}
+.exit-actions{display:flex;gap:10px;justify-content:flex-end}.exit-actions button{border:1px solid var(--ui-border);background:var(--ui-surface);color:#eef1ff}.exit-actions #exitConfirm{background:#653547;border-color:#b5657755}
+.exit-actions button:hover{filter:brightness(1.12)}
+.exit-dialog[open]{animation:live-dialog-in .2s ease}
+body.reduce-motion .exit-dialog{animation:none}
+@media(max-width:600px){.theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.live-customise-grid{gap:12px}.live-look-controls>label{flex:1}.settings-card,.preset-card,.record-dialog{padding:20px}.exit-actions button{flex:1}}
+.customise-section{border-top:1px solid #ffffff10;padding:14px 0}.customise-section>summary{display:flex;align-items:center;justify-content:space-between;list-style:none;cursor:pointer;color:#e0e6f5;font:500 13px var(--control-font);padding:4px 0}.customise-section>summary::-webkit-details-marker{display:none}.customise-section>summary::after{content:'⌄';color:#a5afc6}.customise-section[open]>summary{margin-bottom:16px}.customise-section[open]>summary::after{transform:rotate(180deg)}.customise-section>label{display:grid;gap:8px;font:12px var(--control-font);color:#b7c1d6;margin:14px 0}.customise-section>small{display:block;font:11px/1.6 var(--control-font);color:#a5afc6;margin-top:10px}.customise-section .theme-panel{margin-top:0}.customise-section .menu-default{margin-top:14px;width:100%}.menu-group-label{font:500 10px var(--control-font);text-transform:uppercase;letter-spacing:.08em;color:#8d9ab7}.live-customise-dialog #liveParameters>.customise-section{padding:10px 0;border-color:#ffffff0b}.live-customise-dialog #liveParameters>.customise-section>summary{font-size:12px}
+/* Keep the usable width stable as expanding sections need a scrollbar. */
+.preset-card,.settings-card,.live-customise-dialog,.complex-colour-dialog{scrollbar-gutter:stable}
+.customise-section>.style-setting{margin-block:18px;min-height:30px}
+.customise-section>.style-setting:last-child{margin-bottom:6px}
+.customise-section>.live-param{margin-block:18px}
+/* Native details contents animate in both directions without replacing controls. */
+.customise-section,.settings-group{interpolate-size:allow-keywords}
+.customise-section::details-content,.settings-group::details-content{height:0;opacity:0;overflow:clip;transition:height .3s cubic-bezier(.22,.75,.25,1),opacity .2s ease,content-visibility .3s allow-discrete}
+.customise-section[open]::details-content,.settings-group[open]::details-content{height:auto;opacity:1}
+.customise-section>summary::after{transition:transform .25s ease}
+body.reduce-motion .customise-section::details-content,body.reduce-motion .settings-group::details-content,body.reduce-motion .customise-section>summary::after{transition:none}
+@media(prefers-reduced-motion:reduce){.customise-section::details-content,.settings-group::details-content,.customise-section>summary::after{transition:none}}
+.unified-option-icon{width:16px;height:16px;flex:0 0 16px;vertical-align:middle}.unified-toggle>span:first-child:has(.unified-option-icon){display:flex;align-items:center;gap:9px;min-width:0}.unified-option:has(.unified-option-icon){display:flex;align-items:center;justify-content:flex-start;gap:10px;text-align:left}
+
+/* Keep dropdowns above modal windows and position against the viewport. */
+.unified-menu[popover]{margin:0;inset:auto;color:#d8deee}
+
+.unified-group-heading{padding:8px 10px 5px;font:10px var(--control-font);color:#929fb9;letter-spacing:.06em;pointer-events:none}

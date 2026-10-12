@@ -1,3 +1,4 @@
+require('./project-files');
 // This is the "front door" of the desktop app. Electron runs this file first.
 // It figures out where the bundled FFmpeg lives, starts the same local server
 // your app already used, and opens a window pointed at it.
@@ -6,30 +7,60 @@ const { app, BrowserWindow, screen, session, desktopCapturer, ipcMain, dialog } 
 const path = require('path');
 const { spawn } = require('child_process');
 const fsp = require('fs/promises');
+const { UpdateService } = require('./app-updates');
+const { autoUpdater } = require('electron-updater');
+const { MediaVolume } = require('./media-volume');
+const mediaVolume = new MediaVolume();
+let desktopSourceAppId = '';
+
 const RPC = require('discord-rpc');
 
 const APP_TITLE = 'Visualiser Studio';
 const ICON_PATH = path.join(__dirname, 'build', 'icon.png');
+let exitConfirmed=false;
+function requestExitConfirmation(){
+  if(!mainWindow||mainWindow.isDestroyed())return;
+  if(mainWindow.isMinimized())mainWindow.restore();
+  mainWindow.show();mainWindow.focus();
+  mainWindow.webContents.send('window:confirm-exit');
+}
+ipcMain.handle('window:confirm-exit',event=>{
+  if(!mainWindow||event.sender!==mainWindow.webContents)return;
+  exitConfirmed=true;app.quit();
+});
 
 // Discord Application ID (from the Discord Developer Portal). The public key
 // there is for the HTTP Interactions endpoint, a different feature — Rich
 // Presence over discord-rpc's local IPC transport only needs this ID.
 const DISCORD_CLIENT_ID = '1047543674596249680';
+const REPOSITORY_URL = 'https://github.com/malabobski/Visualiser-Studio';
 
 let discordClient;
 let discordReady = false;
+let discordEnabled = false;
 const activityStart = Date.now();
 let pendingDiscordActivity={details:'Getting things ready…',state:'Visualiser Studio'};
 let discordLastKey='',discordLastSent=0,discordTimer;
 function flushDiscordActivity(){
-  if(!discordReady || !discordClient)return;
+  if(!discordEnabled || !discordReady || !discordClient)return;
   const key=JSON.stringify(pendingDiscordActivity);
   if(key===discordLastKey)return;
   clearTimeout(discordTimer);
   const wait=Math.max(0,4000-(Date.now()-discordLastSent));
   if(wait){discordTimer=setTimeout(flushDiscordActivity,wait);return;}
   discordLastKey=key;discordLastSent=Date.now();
-  discordClient.setActivity({...pendingDiscordActivity,startTimestamp:activityStart,largeImageKey:'app_icon',instance:false}).catch(()=>{discordLastKey='';});
+  // discord-rpc's older setActivity wrapper drops the clickable-image URL.
+  // Send the activity payload directly through the same local RPC transport.
+  discordClient.request('SET_ACTIVITY', {
+    pid:process.pid,
+    activity:{
+      ...pendingDiscordActivity,
+      timestamps:{start:activityStart},
+      assets:{large_image:'app_icon',large_text:'View Visualiser Studio on GitHub',large_url:REPOSITORY_URL},
+      buttons:[{label:'View on GitHub',url:REPOSITORY_URL}],
+      instance:false
+    }
+  }).catch(()=>{discordLastKey='';});
 }
 
 // Connects to the local Discord desktop client over IPC. If Discord isn't
@@ -57,6 +88,14 @@ ipcMain.on('set-discord-status', (event, payload = {}) => {
   pendingDiscordActivity={details:clean(payload.details)||'Visualiser Studio',state:clean(payload.state)||undefined};
   flushDiscordActivity();
 });
+ipcMain.on('set-discord-enabled', (event, enabled) => {
+  if(typeof enabled!=='boolean')return;
+  discordEnabled=enabled;
+  clearTimeout(discordTimer);
+  discordLastKey='';
+  if(enabled)flushDiscordActivity();
+  else if(discordReady)discordClient.clearActivity().catch(()=>{});
+});
 
 // Only one copy of the app should ever run at once — a second copy would
 // otherwise try to start its own server on the same port and crash with
@@ -82,6 +121,43 @@ function resolveFfmpegPath() {
 
 const PORT = 3000;
 let mainWindow, miniWindow;
+const updatePreferencesPath = () => path.join(app.getPath('userData'),'update-preferences.json');
+const updates = new UpdateService({
+  updater:autoUpdater,version:app.getVersion(),
+  inspectLatestVersion:async()=>{
+    const response=await fetch('https://api.github.com/repos/malabobski/Visualiser-Studio/releases/latest',{headers:{Accept:'application/vnd.github+json','User-Agent':'Visualiser-Studio'},signal:AbortSignal.timeout(15000)});
+    if(!response.ok)throw Error('Release check failed');
+    return (await response.json()).tag_name;
+  },
+  enabled:app.isPackaged && (['win32','darwin'].includes(process.platform) || !!process.env.APPIMAGE),
+  savePreference:async automatic=>{const file=updatePreferencesPath();await fsp.mkdir(path.dirname(file),{recursive:true});await fsp.writeFile(file,JSON.stringify({automatic}));},
+  onInstall:()=>{exitConfirmed=true;},onInstallError:()=>{exitConfirmed=false;}
+});
+updates.on('change',state=>{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('updates:state',state);});
+const isUpdateWindow = event => !!mainWindow && !mainWindow.isDestroyed() && event.sender===mainWindow.webContents;
+ipcMain.handle('updates:get',event=>isUpdateWindow(event)?updates.snapshot():null);
+ipcMain.handle('updates:check',event=>isUpdateWindow(event)?updates.check():null);
+ipcMain.handle('updates:automatic',(event,value)=>isUpdateWindow(event)?updates.setAutomatic(value):null);
+ipcMain.handle('updates:install',event=>isUpdateWindow(event)?updates.install():{ok:false,message:'Update installation unavailable.'});
+app.on('will-quit',()=>updates.dispose());
+
+const isVolumeWindow = event => event.sender === mainWindow?.webContents || event.sender === miniWindow?.webContents;
+ipcMain.handle('media-volume:get', async (event, target) => {
+  if (!isVolumeWindow(event)) return { available: false, reason: 'Volume control unavailable.' };
+  const sourceAppId = desktopSourceAppId;
+  const result = await mediaVolume.request(target, sourceAppId);
+  if (target === 'app' && sourceAppId !== desktopSourceAppId) return { available: false, reason: 'Media app changed. Try again.' };
+  return { ...result, target, sourceAppId };
+});
+ipcMain.handle('media-volume:set', async (event, request) => {
+  if (!isVolumeWindow(event) || !request || !Number.isFinite(request.value)) return { available: false, reason: 'Invalid volume request.' };
+  if (request.target === 'app' && (!desktopSourceAppId || request.sourceAppId !== desktopSourceAppId)) return { available: false, reason: 'Media app changed. Try again.' };
+  const sourceAppId = desktopSourceAppId;
+  const result = await mediaVolume.request(request.target, sourceAppId, request.value);
+  return { ...result, target: request.target, sourceAppId };
+});
+app.on('will-quit', () => mediaVolume.stop());
+
 let mainAppPort;
 let miniOpacity=1;
 
@@ -117,6 +193,7 @@ function setupNowPlaying(win) {
   let lastPayload = null;
   const send = (payload) => {
     lastPayload = payload;
+    desktopSourceAppId = payload?.sourceAppId || '';
     if (win && !win.isDestroyed()) win.webContents.send('now-playing:update', payload);
     if (miniWindow && !miniWindow.isDestroyed()) miniWindow.webContents.send('now-playing:update', payload);
   };
@@ -212,7 +289,7 @@ function restoreFullApp() {
 }
 ipcMain.handle('mini:open', async () => {
   if(miniWindow && !miniWindow.isDestroyed()){miniWindow.show();miniWindow.focus();return;}
-  miniWindow=new BrowserWindow({width:454,height:244,minWidth:340,minHeight:220,frame:false,transparent:true,backgroundColor:'#00000000',alwaysOnTop:true,resizable:false,show:false,skipTaskbar:false,title:'Visualiser Studio · Mini player',webPreferences:{contextIsolation:true,preload:path.join(__dirname,'preload.js')}});
+  miniWindow=new BrowserWindow({width:454,height:244,minWidth:340,minHeight:220,frame:false,transparent:true,backgroundColor:'#00000000',alwaysOnTop:true,resizable:false,show:false,skipTaskbar:false,title:'Visualiser Studio · Mini player',icon:path.join(__dirname,'build','mini-icon.png'),webPreferences:{contextIsolation:true,preload:path.join(__dirname,'preload.js')}});
   miniWindow.setOpacity(miniOpacity);
   miniWindow.once('ready-to-show',()=>{if(miniWindow){miniWindow.show();mainWindow?.hide();}});
   miniWindow.on('closed',()=>{miniWindow=null;if(mainWindow && !mainWindow.isDestroyed()){mainWindow.show();mainWindow.focus();}});
@@ -300,17 +377,25 @@ async function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+  mainWindow.on('close',event=>{
+    if(!exitConfirmed){event.preventDefault();requestExitConfirmation();}
+  });
 
   setupSystemAudioLoopback();
   setupNowPlaying(mainWindow);
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   setupDiscordRPC();
+  let automatic=true;try{automatic=JSON.parse(await fsp.readFile(updatePreferencesPath(),'utf8')).automatic!==false;}catch{}
+  updates.start(automatic);
   createWindow();
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', event => {
+  if(!exitConfirmed&&mainWindow&&!mainWindow.isDestroyed()){
+    event.preventDefault();requestExitConfirmation();return;
+  }
   discordClient?.destroy().catch(() => {});
 });
 

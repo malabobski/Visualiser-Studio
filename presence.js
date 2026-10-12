@@ -1,8 +1,16 @@
 // One activity resolver prevents background playback from replacing the
 // user's current activity. Discord receives changes, not per-frame updates.
 (() => {
-  if (!window.discord?.setStatus) return;
   let lastKey = '', refreshTimer;
+  const toggle=$('settingRichPresence');
+  toggle.checked=appSettings.richPresence!==false;
+  toggle.addEventListener('change',()=>{
+    appSettings.richPresence=toggle.checked;persistAppSettings();
+    window.discord?.setEnabled?.(toggle.checked);
+    lastKey='';if(toggle.checked&&window.discord?.setStatus)refresh();
+  });
+  if (!window.discord?.setStatus) return;
+  window.discord.setEnabled?.(toggle.checked);
   const visible = id => { const element=$(id);return !!element && !element.hidden; };
   function activity() {
     const recording=window.getLiveRecordingActivity?.();
@@ -30,6 +38,7 @@
     return {details:'Creating a new visualiser',state:'Choosing audio and a visual style'};
   }
   function refresh() {
+    if(!toggle.checked)return;
     const result=activity(),key=JSON.stringify(result);
     if(key===lastKey)return;
     lastKey=key;window.discord.setStatus(result.details,result.state);

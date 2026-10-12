@@ -1,0 +1,17 @@
+/* Keep the real live stage beside Customise while only the controls scroll. */
+#liveCustomiseDialog{width:min(1600px,calc(100vw - 48px));max-width:none;height:min(850px,calc(100vh - 48px));max-height:calc(100vh - 48px);padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible;scrollbar-gutter:auto;animation:none!important;transform:none!important}
+.live-customise-workspace{width:100%;height:100%;display:grid;grid-template-columns:minmax(300px,400px) minmax(0,1fr);gap:24px;min-width:0;min-height:0}
+.live-customise-editor{display:flex;flex-direction:column;min-height:0;min-width:0;box-sizing:border-box;padding:22px;border:1px solid #ffffff18;border-radius:24px;background:linear-gradient(145deg,#222938,#181e2b);box-shadow:0 24px 70px #03071065,inset 0 1px #ffffff06;opacity:0;transform:translateX(-22px);transition:opacity .35s ease,transform .4s cubic-bezier(.2,.8,.2,1)}
+#liveCustomiseDialog.is-visible .live-customise-editor{opacity:1;transform:translateX(0)}
+.live-customise-editor>.record-heading{flex:0 0 auto;margin-bottom:14px;gap:12px}
+.live-customise-scroll{flex:1;min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;padding:0 8px 4px 0;overscroll-behavior:contain}
+.live-customise-stage-pane{display:grid;place-items:center;min-width:0;min-height:0;container-type:size}
+#liveCustomiseDialog #liveStage{position:relative!important;inset:auto!important;width:min(100cqw,calc(100cqh * 16 / 9))!important;height:auto!important;aspect-ratio:16/9;max-width:none!important;min-width:0;transform:none!important;margin:0!important;view-transition-name:none;cursor:auto}
+#liveCustomiseDialog #liveCanvas{width:100%;height:100%;object-fit:contain;aspect-ratio:16/9}
+#liveCustomiseDialog .live-stage-toolbar{display:none!important}
+#liveCustomiseDialog .live-customise-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+#liveCustomiseDialog label{min-width:0}#liveCustomiseDialog .live-param{grid-template-columns:minmax(70px,90px) minmax(0,1fr) 38px;gap:8px}
+#liveCustomiseDialog .live-rgb-menu{min-width:0;width:100%;box-sizing:border-box}#liveCustomiseDialog .live-rgb-row{grid-template-columns:14px minmax(0,1fr) 30px}
+@media(max-width:1000px){#liveCustomiseDialog{width:calc(100vw - 32px)}.live-customise-workspace{grid-template-columns:minmax(280px,340px) minmax(0,1fr);gap:16px}.live-customise-editor{padding:16px}}
+@media(max-width:700px){#liveCustomiseDialog{height:calc(100vh - 32px);max-height:calc(100vh - 32px);overflow:auto}.live-customise-workspace{height:auto;grid-template-columns:1fr;grid-template-rows:28vh 55vh;gap:16px}.live-customise-stage-pane{grid-row:1}.live-customise-editor{grid-row:2}}
+body.reduce-motion .live-customise-editor{transition:none}@media(prefers-reduced-motion:reduce){.live-customise-editor{transition:none}}

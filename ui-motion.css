@@ -1,0 +1,24 @@
+/* Keep closing surfaces painted until their exit transition finishes. */
+:is(dialog,.settings-window,.preset-window,.template-switch-dialog,#projectLibrary,#automationScreen,.style-menu,.range-menu,.simple-menu,.size-menu,.colour-menu,.live-rgb-menu,.complex-hex-popup,.project-recent-menu){transition:opacity .22s ease,transform .22s cubic-bezier(.22,.7,.3,1),display .22s allow-discrete,overlay .22s allow-discrete}
+:is(#projectLibrary,#automationScreen){opacity:1;transform:translateY(0)}
+:is(dialog):not([open]){opacity:0;transform:translateY(8px) scale(.985);pointer-events:none}
+dialog[open]{opacity:1;transform:translateY(0) scale(1)}
+dialog::backdrop{transition:opacity .22s ease,display .22s allow-discrete,overlay .22s allow-discrete;opacity:0}
+dialog[open]::backdrop{opacity:1}
+:is(.settings-window,.preset-window,.template-switch-dialog,#projectLibrary,#automationScreen,.style-menu,.range-menu,.simple-menu,.size-menu,.colour-menu,.live-rgb-menu,.complex-hex-popup)[hidden]{opacity:0;pointer-events:none}
+:is(#projectLibrary,#automationScreen,.style-menu,.range-menu,.simple-menu,.size-menu,.colour-menu,.live-rgb-menu,.complex-hex-popup)[hidden]{transform:translateY(7px)}
+:is(.style-menu,.range-menu,.simple-menu,.size-menu,.colour-menu,.live-rgb-menu,.complex-hex-popup):not([hidden]){opacity:1;transform:translateY(0)}
+.project-recent-menu{opacity:0;transform:translateY(5px)}
+.project-recent:is(:hover,:focus-within,.is-open)>.project-recent-menu{opacity:1;transform:translateY(0)}
+/* Popovers in native details need content visibility retained during closing. */
+:is(.ease-edit,.live-effects)::details-content{opacity:0;transition:opacity .2s ease,content-visibility .2s allow-discrete;overflow:visible}
+:is(.ease-edit,.live-effects)[open]::details-content{opacity:1}
+@starting-style{dialog[open]{opacity:0;transform:translateY(8px) scale(.985)}dialog[open]::backdrop{opacity:0}:is(#projectLibrary,#automationScreen,.style-menu,.range-menu,.simple-menu,.size-menu,.colour-menu,.live-rgb-menu,.complex-hex-popup):not([hidden]){opacity:0;transform:translateY(7px)}}
+body.reduce-motion :is(dialog,.settings-window,.preset-window,.template-switch-dialog,#projectLibrary,#automationScreen,.style-menu,.range-menu,.simple-menu,.size-menu,.colour-menu,.live-rgb-menu,.complex-hex-popup,.project-recent-menu),body.reduce-motion dialog::backdrop,body.reduce-motion :is(.ease-edit,.live-effects)::details-content{transition:none}
+@media(prefers-reduced-motion:reduce){:is(dialog,.settings-window,.preset-window,.template-switch-dialog,#projectLibrary,#automationScreen,.style-menu,.range-menu,.simple-menu,.size-menu,.colour-menu,.live-rgb-menu,.complex-hex-popup,.project-recent-menu),dialog::backdrop,:is(.ease-edit,.live-effects)::details-content{transition:none}}
+/* Entry animations must release opacity/transform so exits can transition. */
+:is(dialog,.settings-window,.preset-window,.template-switch-dialog,#projectLibrary,#automationScreen,.project-recent-menu){animation-fill-mode:none!important}
+:is(.ease-edit,.live-effects):not([open])::details-content{pointer-events:none}
+/* Expanded sections must let colour popovers extend beyond their rows. */
+.settings-group[open]::details-content,.customise-section[open]::details-content{overflow:visible}
+.settings-group:has(.colour-menu:not([hidden])),.customise-section:has(.live-rgb-menu:not([hidden]),.complex-hex-popup:not([hidden])){position:relative;z-index:5}

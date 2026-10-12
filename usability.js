@@ -1,5 +1,68 @@
 // Convenience features share the existing playback, look and template state.
 (() => {
+  const diamondMessages = [
+    'Hi!!', 'I love you!', 'You found me!', 'Hello, lovely human!',
+    'A tiny hello, just for you.', 'Sending you a little sparkle ✨',
+    'You make this place brighter.', 'Secret diamond reporting for duty!',
+    'Boop!', 'Good to see you again!', 'Your music taste? Excellent.',
+    'Stay a little. Have a dance.', 'A hug, in pixel form.',
+    'You clicked! I sparkled!', 'This is our little secret.',
+    'Hope your day has a good soundtrack.', 'You deserve a good day.',
+    'Tiny diamond. Big feelings.', 'Keep being you.', 'Hey, superstar!',
+    'Fancy seeing you here!', 'You bring the music. I bring the sparkle.',
+    'One complimentary smile :)', 'I was hoping you would click me.',
+    'There you are!', 'Little button, lots of love.', 'Made you look!',
+    'You are the main character today.', 'Hydration break?',
+    'Relax your shoulders. Enjoy the music.', 'Another song? Go on.',
+    'Sending good vibes your way.', 'This beat looks good on you.',
+    'A secret handshake, but with pixels.', 'You have unlocked: absolutely nothing ♥',
+    'Shh… the diamond is awake.', 'Hello from the tiny corner!',
+    'Keep the good tunes coming.', 'Thanks for hanging out with me.',
+    'You found the happy button!', 'A little joy between songs.',
+    'Have you smiled today?', 'Looking sharp!', 'I believe in you.',
+    'The pixels are pleased.', 'You + music = a good time.',
+    'Sending one very small high five.', 'Glad you are here.',
+    'Press play on a nice day.', 'Okay, one more sparkle ✨', 'Sparkles!!!!!!',
+    'You found the party!', 'Shh… secret mode.', 'The pixels are dancing.',
+    'Disco diamond!', 'A shooting star!', 'Rare diamond discovered!',
+    'You again? ♥', 'Make a wish.', 'Secret handshake accepted.'
+  ];
+  const diamondHint = document.createElement('div');
+  diamondHint.className = 'diamond-hint';
+  diamondHint.setAttribute('role', 'status');
+  $('windowBar').appendChild(diamondHint);
+  const sparkleSound = new Audio('assets/magical-burst.mp3');
+  sparkleSound.preload = 'auto';
+  let diamondQueue = [], lastDiamondMessage, diamondHintTimer;
+  $('windowDiamond').addEventListener('click', (event) => {
+    if (!diamondQueue.length) {
+      diamondQueue = [...diamondMessages];
+      for (let i = diamondQueue.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [diamondQueue[i], diamondQueue[j]] = [diamondQueue[j], diamondQueue[i]];
+      }
+      if (diamondQueue.at(-1) === lastDiamondMessage) {
+        [diamondQueue[0], diamondQueue[diamondQueue.length - 1]] = [diamondQueue.at(-1), diamondQueue[0]];
+      }
+    }
+    lastDiamondMessage = diamondQueue.pop();
+    if (lastDiamondMessage === 'Rare diamond discovered!' && Math.random() > .1) lastDiamondMessage = 'Tiny diamond. Big feelings.';
+    if (event.shiftKey) lastDiamondMessage = 'Rare diamond discovered!';
+    window.dispatchEvent(new CustomEvent('diamond-surprise', {detail:lastDiamondMessage}));
+    const rect = $('windowDiamond').getBoundingClientRect();
+    diamondHint.textContent = lastDiamondMessage;
+    diamondHint.style.left = `${Math.max(8, Math.min(rect.left + rect.width / 2 - diamondHint.offsetWidth / 2, window.innerWidth - diamondHint.offsetWidth - 8))}px`;
+    diamondHint.style.top = `${rect.bottom + 10}px`;
+    diamondHint.classList.remove('visible');
+    void diamondHint.offsetWidth;
+    diamondHint.classList.add('visible');
+    clearTimeout(diamondHintTimer);
+    diamondHintTimer = setTimeout(() => diamondHint.classList.remove('visible'), 2800);
+    if (lastDiamondMessage === 'Sparkles!!!!!!') {
+      sparkleSound.currentTime = 0;
+      sparkleSound.play().catch(() => {});
+    }
+  });
   if (window.windowControls) {
     $('windowButtons').hidden = false;
     $('windowMinimise').onclick = () => window.windowControls.minimise();
@@ -88,6 +151,9 @@
   document.addEventListener('click', event => {
     if (event.target.closest('main,.preset-window')) { clearTimeout(historyTimer); historyTimer = setTimeout(rememberLook, 80); }
   });
+  window.addEventListener('project-new',()=>{clearTimeout(historyTimer);snapshots.splice(0,snapshots.length,JSON.stringify(captureCurrentLook()));position=0;historyButtons();localStorage.removeItem('visualiserDraft');});
+  window.addEventListener('automation-open',()=>clearTimeout(historyTimer));
+  window.addEventListener('automation-saved',()=>{clearTimeout(historyTimer);rememberLook();});
   $('easeUndo').onclick = () => travel(-1); $('easeRedo').onclick = () => travel(1);
   $('easeRestore').onclick = () => {
     if (!previousDraft || !styleParameters[previousDraft.style]) return;
@@ -201,10 +267,13 @@
   new MutationObserver(filterTemplates).observe($('templatesGrid'), { childList: true }); filterTemplates();
 
   const commands = [
-    ['Open audio', 'Ctrl+O / Ctrl+0', () => { nav('create'); $('file').click(); }],
+    ['Open audio', 'Ctrl+Shift+O', () => { nav('create'); $('file').click(); }],
     ['Open mini player', '', () => window.miniPlayer?.open()],
     ['Go to Create', 'Alt+1', () => nav('create')], ['Go to Templates', 'Alt+2', () => nav('templates')], ['Go to Live', 'Alt+3', () => nav('live')],
-    ['Save current look as template', 'Ctrl+S', () => saveCurrentAsTemplate()],
+    ['New project', 'Ctrl+N', () => window.Projects?.new()],
+    ['Save project', 'Ctrl+S', () => window.Projects?.save()],
+    ['Open project library', 'Ctrl+O', () => window.Projects?.openLibrary()],
+    ['Save current look as template', 'Ctrl+T', () => saveCurrentAsTemplate()],
     ['Undo visual edit', 'Ctrl+Z', () => travel(-1)], ['Redo visual edit', 'Ctrl+Y', () => travel(1)],
     ['Restore previous draft', '', () => $('easeRestore').click()],
     ['Save stage image', 'Ctrl+I', () => $('easeSnapshot').click()],
@@ -234,14 +303,17 @@
     if (event.key === 'Enter' && document.activeElement === $('easeSearch')) { event.preventDefault(); buttons[0]?.click(); }
   });
   document.addEventListener('keydown', event => {
+    if (($('automationScreen') && !$('automationScreen').hidden)||($('projectLibrary')&&!$('projectLibrary').hidden)) return;
     const editing = event.target.matches('input:not([type="range"]):not([type="checkbox"]):not([type="color"]),textarea,[contenteditable="true"]'), key = event.key.toLowerCase(), ctrl = event.ctrlKey || event.metaKey;
     const handle = action => { event.preventDefault(); event.stopImmediatePropagation(); action(); };
     if (ctrl && key === 'k') return handle(openCommands);
     if (palette.open || document.querySelector('dialog[open],.settings-window:not([hidden]),.template-switch-dialog:not([hidden]),.preset-window:not([hidden])')) return;
-    if (ctrl && (key === 'o' || key === '0')) return handle(() => { nav('create'); $('file').click(); });
+    if (ctrl && key === 'o') return handle(() => event.shiftKey ? window.Projects?.openAudio() : window.Projects?.openLibrary());
+    if (ctrl && key === '0') return handle(() => window.Projects?.openAudio());
     if (editing) return;
     if (ctrl && key === 'i') return handle(() => $('easeSnapshot').click());
-    if (ctrl && key === 's') return handle(saveCurrentAsTemplate);
+    if (ctrl && key === 's') return handle(() => window.Projects?.save());
+    if (ctrl && key === 't') return handle(saveCurrentAsTemplate);
     if (ctrl && key === 'z') return handle(() => travel(event.shiftKey ? 1 : -1));
     if (ctrl && key === 'y') return handle(() => travel(1));
     if (event.altKey && ['1','2','3'].includes(key)) return handle(() => nav({1:'create',2:'templates',3:'live'}[key]));

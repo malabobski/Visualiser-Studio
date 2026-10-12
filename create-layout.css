@@ -1,0 +1,65 @@
+/* Horizontal Create layout only. The controls-left layout stays independent. */
+html body main:not(.controls-left) .controls{
+  display:grid;grid-template-columns:180px minmax(0,1fr) 150px;
+  grid-template-rows:auto 1fr auto;
+  grid-template-areas:'file options actions' 'drop options actions' 'status status status';
+  align-items:start;justify-content:stretch;gap:12px 28px;padding:24px;
+}
+html body main:not(.controls-left) .controls>.file{grid-area:file;align-self:start;justify-content:center;box-sizing:border-box;width:100%;min-height:40px;margin:0}
+html body main:not(.controls-left) .controls>.drop-zone{grid-area:drop;align-self:stretch;box-sizing:border-box;width:100%;height:auto;min-height:112px;transform:none;padding:16px 12px;margin:0}
+html body main:not(.controls-left) .controls>.options{
+  grid-area:options;position:relative;left:auto;top:auto;transform:none;align-self:start;
+  width:100%;min-width:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-rows:repeat(3,auto);gap:14px 12px;justify-content:stretch;align-items:end;
+}
+html body main:not(.controls-left) .options>.style-picker{grid-column:1/3;grid-row:1}
+html body main:not(.controls-left) .options>.colour-picker[data-colour-picker=colour]{grid-column:3;grid-row:1}
+html body main:not(.controls-left) .options>.colour-picker[data-colour-picker=background]{grid-column:4;grid-row:1}
+html body main:not(.controls-left) .options>.size-picker{grid-column:1/3;grid-row:2}
+html body main:not(.controls-left) .options>.simple-picker[data-picker=framerate]{grid-column:3;grid-row:2}
+html body main:not(.controls-left) .options>.ease-speed-picker{grid-column:4;grid-row:2}
+html body main:not(.controls-left) .options>.range-picker{grid-column:1/3;grid-row:3}
+html body main:not(.controls-left) .options>.simple-picker[data-picker=response]{grid-column:3/5;grid-row:3}
+html body main:not(.controls-left) .options>.colour-picker .colour-toggle{width:100%;min-width:0}
+html body main:not(.controls-left) .options #responseToggle{gap:12px;padding:0 12px;overflow:visible}
+html body main:not(.controls-left) .options #responseLabel{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html body main:not(.controls-left) .controls>.actions{grid-area:actions;align-self:center;display:grid;gap:10px;min-width:0;padding-left:20px;border-left:1px solid #ffffff0c}
+html body main:not(.controls-left) .actions button{height:40px;min-height:40px;width:100%;padding:0 10px;font-size:12px}
+html body main:not(.controls-left) .controls>#status{grid-area:status;margin:2px 0 0;font:11px/1.5 var(--control-font);color:#a5afc6}
+@media(max-width:1050px){
+  html body main:not(.controls-left) .controls{grid-template-columns:150px minmax(0,1fr) 130px;gap:12px 18px;padding:20px}
+  html body main:not(.controls-left) .controls>.actions{padding-left:12px}
+}
+@media(max-width:800px){
+  html body main:not(.controls-left) .controls{grid-template-columns:1fr 1fr;grid-template-areas:'file drop' 'options options' 'actions actions' 'status status';grid-template-rows:auto auto auto auto;gap:18px}
+  html body main:not(.controls-left) .controls>.drop-zone{min-height:80px}
+  html body main:not(.controls-left) .controls>.file{align-self:center}
+  html body main:not(.controls-left) .controls>.actions{grid-template-columns:repeat(4,minmax(0,1fr));padding-left:0;border-left:0}
+}
+@media(max-width:500px){
+  html body main:not(.controls-left) .controls>.options{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 8px}
+  html body main:not(.controls-left) .options>.style-picker{grid-column:1/5}
+  html body main:not(.controls-left) .options>.colour-picker[data-colour-picker=colour]{grid-column:1/3;grid-row:2}
+  html body main:not(.controls-left) .options>.colour-picker[data-colour-picker=background]{grid-column:3/5;grid-row:2}
+  html body main:not(.controls-left) .options>.size-picker{grid-row:3}
+  html body main:not(.controls-left) .options>.simple-picker[data-picker=framerate]{grid-row:3}
+  html body main:not(.controls-left) .options>.ease-speed-picker{grid-row:3}
+  html body main:not(.controls-left) .options>.range-picker{grid-row:4}
+  html body main:not(.controls-left) .options>.simple-picker[data-picker=response]{grid-row:4}
+  html body main:not(.controls-left) .controls>.actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+main.complex-colours .options>.colour-picker[data-colour-picker=colour],main.complex-colours .options>.colour-picker[data-colour-picker=background]{display:none}.complex-colour-button{min-width:0;display:grid;gap:5px}.complex-colour-button[hidden],.complex-motion-controls[hidden]{display:none!important}html body main:not(.controls-left) .options>.complex-colour-button{grid-column:3/5;grid-row:1}main.controls-left .options>.complex-colour-button{grid-column:span 2}.complex-gradient-swatch{display:block;width:40px;height:18px;border-radius:5px;background:linear-gradient(90deg,#70e2d2,#a68bf5,#ffb69a)}.complex-motion-controls{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0}.complex-motion-controls label,.complex-colour-dialog label{display:grid;gap:8px;font:12px var(--control-font);color:#b7c1d6}.complex-motion-controls small{grid-column:1/-1;font:11px/1.6 var(--control-font);color:#929eb9}.complex-colour-dialog{max-height:85vh;overflow:auto}.complex-colour-dialog input[type=text]{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #ffffff20;border-radius:10px;background:#171e2d;color:#eef1ff;font:12px var(--control-font)}#complexGradientPreview{height:70px;border-radius:14px;margin-bottom:15px}#complexColourStops{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:15px}#complexColourStops button{width:32px;height:32px;min-height:32px;padding:0;border-radius:9px;border:2px solid transparent}#complexColourStops button.selected{outline:2px solid #ede8ff;outline-offset:2px}.complex-colour-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}.complex-colour-dialog .complex-rgb-row{display:grid;grid-template-columns:15px minmax(0,1fr) 28px;align-items:center;gap:10px;margin:12px 0}.complex-rgb-row input{width:100%;accent-color:#a68bf5}.complex-rgb-row output{text-align:right}.complex-colour-dialog input[type=range]{accent-color:#a68bf5;width:100%}@media(max-width:500px){html body main:not(.controls-left) .options>.complex-colour-button{grid-column:1/5;grid-row:2}}
+.complex-rgb-popover{position:relative;margin:10px 0 18px;border:1px solid #ffffff18;border-radius:11px;background:#1b2232}.complex-rgb-popover>summary{display:flex;align-items:center;gap:10px;list-style:none;padding:10px 12px;cursor:pointer;font:12px var(--control-font);color:#e9ecf5}.complex-rgb-popover>summary::-webkit-details-marker{display:none}.complex-rgb-popover>summary>span{margin-left:auto}.complex-rgb-popover summary i{width:22px;height:22px;display:block;border-radius:6px;border:1px solid #ffffff20}.complex-rgb-popover>div{padding:0 14px 10px;background:#202737;border-radius:0 0 11px 11px}.complex-gradient-choices{display:grid;grid-template-columns:1fr 1fr;gap:6px}.complex-colour-dialog .complex-gradient-choices button{font:11px var(--control-font);padding:8px;min-height:35px;background:#202737}.complex-colour-dialog .complex-gradient-choices button[aria-pressed=true]{background:#3b415b;border-color:#a68bf566}.complex-colour-dialog input[type=range]:disabled{opacity:.3}
+/* Colour editor and the real stage share the modal so changes stay visible. */
+dialog.complex-colour-dialog{width:min(1240px,calc(100vw - 48px));max-width:none;max-height:calc(100vh - 48px);padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible}dialog.complex-colour-dialog[open]{display:grid;grid-template-columns:minmax(320px,420px) minmax(0,1fr);gap:24px;align-items:center}.complex-colour-editor{padding:24px;border:1px solid #ffffff18;border-radius:24px;background:linear-gradient(145deg,#222938,#181e2b);box-shadow:0 24px 70px #03071065;max-height:calc(100vh - 96px);overflow:auto;box-sizing:border-box}.complex-stage-preview{min-width:0}.complex-stage-preview .stage{position:relative!important;inset:auto!important;width:100%!important;height:auto!important;max-width:none!important;transform:none!important;margin:0;opacity:1!important;view-transition-name:none}.complex-stage-preview .stage canvas{max-height:70vh;object-fit:contain}.complex-stage-preview .stage-toggles{display:none}.complex-colour-editor input[aria-controls]{cursor:pointer}.complex-hex-popup{margin:8px 0 18px;padding:10px 14px;border:1px solid #ffffff18;border-radius:13px;background:#202737;box-shadow:0 8px 22px #03071030}.complex-hex-popup[hidden]{display:none}#complexGradientHint{display:block;font:11px/1.6 var(--control-font);color:#a5afc6;margin:8px 0 16px}.complex-colour-editor .live-customise-grid{grid-template-columns:1fr}.complex-gradient-choices{grid-template-columns:1fr 1fr}@media(max-width:900px){dialog.complex-colour-dialog[open]{grid-template-columns:1fr;width:min(640px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;gap:16px}.complex-stage-preview{grid-row:1}.complex-stage-preview .stage canvas{max-height:30vh}.complex-colour-editor{max-height:none}.complex-stage-preview .preview-controls{bottom:12px}}
+/* The preview uses the export ratio, rather than stretching every canvas to 16:9. */
+main .stage #canvas{aspect-ratio:16/9;width:100%;height:auto;object-fit:contain}
+main:not(.presets-open) .stage,main.controls-left:not(.presets-open) .stage{width:min(100%,calc(72vh * 16 / 9));margin-inline:auto}
+main .stage:fullscreen #canvas{width:100%;height:100%;aspect-ratio:auto;object-fit:contain}
+.complex-stage-preview .stage #canvas{aspect-ratio:16/9;object-fit:contain}
+
+main .stage:fullscreen{width:100vw!important;height:100vh!important;max-width:none!important;margin:0!important}
+.create-stage-boundary{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:var(--boundary-width);height:var(--boundary-height);box-sizing:border-box;pointer-events:none;z-index:2;border:1px solid #c6b3e7aa;border-radius:3px;box-shadow:0 0 13px #aa8acf30,inset 0 0 10px #aa8acf18;animation:stageBoundaryGlow 8s ease-in-out infinite}
+.stage:fullscreen[data-show-boundary="true"]>.create-stage-boundary{display:block}
+@keyframes stageBoundaryGlow{0%,100%{border-color:#c6b3e799;box-shadow:0 0 13px #aa8acf30,inset 0 0 10px #aa8acf18}50%{border-color:#8ebccdaa;box-shadow:0 0 16px #78aec538,inset 0 0 12px #78aec51c}}
+body.reduce-motion .create-stage-boundary{animation:none}@media(prefers-reduced-motion:reduce){.create-stage-boundary{animation:none}}

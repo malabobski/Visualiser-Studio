@@ -1,17 +1,22 @@
 {
   "name": "audio-visualiser-studio",
-  "version": "1.2.0",
+  "version": "1.2.5",
   "private": true,
   "description": "Turn audio tracks into visualiser videos.",
   "main": "main.js",
   "scripts": {
     "start": "node server.js",
     "electron": "electron .",
-    "dist": "electron-builder"
+    "dist": "electron-builder --publish never",
+    "test:midi": "node --test tests/midi.test.js",
+    "test:volume": "node --test tests/media-volume.test.js",
+    "dist:publish": "electron-builder --win --publish always",
+    "test:updates": "node --test tests/updates.test.js"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.2",
     "discord-rpc": "^4.0.1",
+    "electron-updater": "^6.8.9",
     "ffmpeg-static": "^5.2.0",
     "fft.js": "^4.0.4"
   },
@@ -27,20 +32,40 @@
       "!*.bat",
       "!README.md",
       "!.git/**",
-      "!dist/**"
+      "!dist/**",
+      "!tests/**",
+      "!UPDATES.md",
+      "!RELEASE_NOTES_v1.2.5.md"
     ],
     "asarUnpack": [
       "node_modules/ffmpeg-static/**",
-      "now-playing.ps1"
+      "now-playing.ps1",
+      "media-volume.ps1"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "artifactName": "Visualiser-Studio-Setup-${version}.${ext}"
     },
     "mac": {
-      "target": "dmg"
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "linux": {
       "target": "AppImage"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "malabobski",
+        "repo": "Visualiser-Studio",
+        "releaseType": "draft"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/malabobski/Visualiser-Studio.git"
   }
 }
