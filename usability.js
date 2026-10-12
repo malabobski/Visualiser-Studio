@@ -154,6 +154,8 @@
   window.addEventListener('project-new',()=>{clearTimeout(historyTimer);snapshots.splice(0,snapshots.length,JSON.stringify(captureCurrentLook()));position=0;historyButtons();localStorage.removeItem('visualiserDraft');});
   window.addEventListener('automation-open',()=>clearTimeout(historyTimer));
   window.addEventListener('automation-saved',()=>{clearTimeout(historyTimer);rememberLook();});
+  window.addEventListener('visualiser-look-changing',()=>{clearTimeout(historyTimer);rememberLook();});
+  window.addEventListener('visualiser-look-changed',()=>{clearTimeout(historyTimer);rememberLook();});
   $('easeUndo').onclick = () => travel(-1); $('easeRedo').onclick = () => travel(1);
   $('easeRestore').onclick = () => {
     if (!previousDraft || !styleParameters[previousDraft.style]) return;

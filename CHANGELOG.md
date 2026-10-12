@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.6
+
+- Added Surprise me to the Create Style menu: a new style with one of five coordinated colour palettes.
+- Supports both layouts, Basic and enabled Complex styles, project/template saving and one-step undo.
+- Published Windows installer and update metadata for testing automatic updates from v1.2.5.
+
 ## 1.2.5
 
 ### Create your own visuals
