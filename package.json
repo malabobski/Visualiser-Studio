@@ -1,6 +1,6 @@
 {
   "name": "audio-visualiser-studio",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "private": true,
   "description": "Turn audio tracks into visualiser videos.",
   "main": "main.js",
@@ -11,7 +11,9 @@
     "test:midi": "node --test tests/midi.test.js",
     "test:volume": "node --test tests/media-volume.test.js",
     "dist:publish": "electron-builder --win --publish always",
-    "test:updates": "node --test tests/updates.test.js"
+    "test:updates": "node --test tests/updates.test.js",
+    "dist:publish:bridge": "electron-builder --win --publish always --config build/bridge-release.cjs",
+    "test:achievements": "node --test tests/achievements.test.js"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.2",
@@ -35,7 +37,11 @@
       "!dist/**",
       "!tests/**",
       "!UPDATES.md",
-      "!RELEASE_NOTES_*.md"
+      "!RELEASE_NOTES_*.md",
+      "!build/create-installer-art.cjs",
+      "!build/installer.nsh",
+      "!build/installer*.bmp",
+      "!build/bridge-release.cjs"
     ],
     "asarUnpack": [
       "node_modules/ffmpeg-static/**",
@@ -59,10 +65,22 @@
       {
         "provider": "github",
         "owner": "malabobski",
-        "repo": "Visualiser-Studio",
+        "repo": "Visualiser-Studio-Releases",
         "releaseType": "draft"
       }
-    ]
+    ],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": false,
+      "include": "build/installer.nsh",
+      "installerSidebar": "build/installerSidebar.bmp",
+      "uninstallerSidebar": "build/installerSidebar.bmp",
+      "installerHeader": "build/installerHeader.bmp",
+      "installerLanguages": [
+        "en_US"
+      ],
+      "runAfterFinish": true
+    }
   },
   "repository": {
     "type": "git",

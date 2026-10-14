@@ -31,11 +31,17 @@
   try{const saved=Number(localStorage.getItem('miniPlayerOpacity'));if(saved>=35&&saved<=100)$('miniOpacity').value=saved;}catch{}
   $('miniOpacity').oninput=opacity;opacity();
   document.addEventListener('click',event=>{if(!event.target.closest('#miniOptions'))$('miniOptions').open=false;});
+  document.addEventListener('pointerdown',event=>{
+    if($('miniOptions').open&&event.target.closest('.resize-arc')){event.preventDefault();event.stopImmediatePropagation();return;}
+    if(!event.target.closest('#miniOptions'))$('miniOptions').open=false;
+  },true);
   $('miniOptions').addEventListener('keydown',event=>{if([' ', 'Enter'].includes(event.key))event.stopPropagation();});
   const finish=event=>{if(!drag || event.pointerId!==drag.id)return;const old=drag;drag=null;cancelAnimationFrame(resizeFrame);old.button.classList.remove('resizing');if(old.button.hasPointerCapture(old.id))old.button.releasePointerCapture(old.id);};
+  const settingsMenu=document.querySelector('.mini-options-menu');settingsMenu.setAttribute('popover','manual');
+  $('miniOptions').addEventListener('toggle',()=>{const open=$('miniOptions').open;document.body.classList.toggle('mini-settings-open',open);if(open){if(drag)finish({pointerId:drag.id});settingsMenu.showPopover();}else settingsMenu.hidePopover();});
   document.querySelectorAll('.resize-arc').forEach(button=>{
     button.addEventListener('pointerdown',async event=>{
-      if(event.button!==0)return;event.preventDefault();
+      if(event.button!==0||$('miniOptions').open)return;event.preventDefault();
       const current={id:event.pointerId,x:event.screenX,y:event.screenY,button,corner:button.dataset.corner};drag=current;
       button.setPointerCapture(event.pointerId);button.classList.add('resizing');
       current.bounds=await window.miniPlayer.bounds();
@@ -51,6 +57,7 @@
     button.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();window.miniPlayer.action('default-size');}});
   });
   document.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&$('miniOptions').open){$('miniOptions').open=false;return;}
     if(event.target.matches('input') || $('miniOptions').open)return;
     if(event.code==='Space'){event.preventDefault();if(media?.canToggle)control('toggle');}
     if(event.key.toLowerCase()==='q')seekBy(-10);if(event.key.toLowerCase()==='e')seekBy(10);

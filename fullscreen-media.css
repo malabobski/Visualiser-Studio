@@ -1,0 +1,19 @@
+.live-stage.fullscreen-media-stage:not([data-player-mode=hidden])>#nowPlayingCard{position:absolute;right:24px;bottom:24px;margin:0;display:grid;grid-template-columns:var(--media-cover-size,72px) minmax(0,1fr);grid-template-rows:var(--media-cover-size,72px) auto auto auto;align-content:start;gap:12px 16px;width:var(--media-cover-size,72px);height:var(--media-cover-size,72px);max-height:calc(100dvh - 64px);padding:0;overflow:clip;border:1px solid transparent;border-radius:16px;background:transparent;backdrop-filter:none;box-shadow:none;opacity:1;transform:none;pointer-events:auto;interpolate-size:allow-keywords;transition:width .32s cubic-bezier(.22,.7,.3,1),height .32s cubic-bezier(.22,.7,.3,1),padding .32s,border-color .25s,background .25s,box-shadow .25s}
+.live-stage.fullscreen-media-stage>#nowPlayingCard .media-art{grid-column:1;grid-row:1;width:var(--media-cover-size,72px);height:var(--media-cover-size,72px);min-height:0;aspect-ratio:1;border-radius:14px;font-size:28px;cursor:pointer}
+.live-stage.fullscreen-media-stage>#nowPlayingCard .now-playing-meta{grid-column:2;grid-row:1;min-width:0}.live-stage.fullscreen-media-stage>#nowPlayingCard .now-playing-meta strong{font-size:16px}
+.live-stage.fullscreen-media-stage>#nowPlayingCard>:not(.media-art){opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s,visibility .18s}
+.live-stage.fullscreen-media-stage:not([data-player-mode=hidden])>#nowPlayingCard.media-expanded{width:min(430px,calc(100vw - 48px));height:auto;padding:18px;border-color:#ffffff18;background:#171d2de8;box-shadow:0 12px 40px #0006;backdrop-filter:blur(18px)}
+.live-stage.fullscreen-media-stage>#nowPlayingCard.media-expanded>:not(.media-art){opacity:1;visibility:visible;transition-delay:.1s}
+.live-stage.fullscreen-media-stage>#nowPlayingCard.media-controls-ready>:not(.media-art){pointer-events:auto}
+.live-stage.fullscreen-media-stage>#nowPlayingCard:not(.media-controls-ready) #mediaOptions{visibility:hidden;pointer-events:none}
+.live-stage.fullscreen-media-stage[data-player-mode=hidden]>#nowPlayingCard{display:none}
+.live-stage.fullscreen-media-stage:has(#nowPlayingCard:hover){cursor:auto}
+.live-stage.fullscreen-media-stage>#nowPlayingCard .media-art{cursor:grab;touch-action:none}
+.live-stage.fullscreen-media-stage>#nowPlayingCard.cover-moving .media-art{cursor:grabbing}
+.media-options-menu[popover]{position:fixed;inset:auto;margin:0;max-height:calc(100dvh - 32px);overflow-y:auto;scrollbar-gutter:stable;box-sizing:border-box;padding:16px;gap:14px}
+.media-options-menu[popover]:not(:popover-open){display:none}.media-options-menu[popover]:popover-open{display:grid}
+.media-options-menu .fullscreen-overlay-setting{display:grid;gap:8px;padding:12px 0 0;border:0;border-top:1px solid #ffffff12;border-radius:0;background:none;font:11px var(--control-font)}
+.fullscreen-overlay-settings{display:grid;gap:14px}
+.media-options-menu .unified-select,.media-options-menu .unified-toggle{width:100%;min-width:0}
+body.reduce-motion .live-stage.fullscreen-media-stage>#nowPlayingCard,body.reduce-motion .live-stage.fullscreen-media-stage>#nowPlayingCard>:not(.media-art){transition:none}
+@media(prefers-reduced-motion:reduce){.live-stage.fullscreen-media-stage>#nowPlayingCard,.live-stage.fullscreen-media-stage>#nowPlayingCard>:not(.media-art){transition:none}}

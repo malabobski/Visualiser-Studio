@@ -1,32 +1,6 @@
 // Convenience features share the existing playback, look and template state.
 (() => {
-  const diamondMessages = [
-    'Hi!!', 'I love you!', 'You found me!', 'Hello, lovely human!',
-    'A tiny hello, just for you.', 'Sending you a little sparkle ✨',
-    'You make this place brighter.', 'Secret diamond reporting for duty!',
-    'Boop!', 'Good to see you again!', 'Your music taste? Excellent.',
-    'Stay a little. Have a dance.', 'A hug, in pixel form.',
-    'You clicked! I sparkled!', 'This is our little secret.',
-    'Hope your day has a good soundtrack.', 'You deserve a good day.',
-    'Tiny diamond. Big feelings.', 'Keep being you.', 'Hey, superstar!',
-    'Fancy seeing you here!', 'You bring the music. I bring the sparkle.',
-    'One complimentary smile :)', 'I was hoping you would click me.',
-    'There you are!', 'Little button, lots of love.', 'Made you look!',
-    'You are the main character today.', 'Hydration break?',
-    'Relax your shoulders. Enjoy the music.', 'Another song? Go on.',
-    'Sending good vibes your way.', 'This beat looks good on you.',
-    'A secret handshake, but with pixels.', 'You have unlocked: absolutely nothing ♥',
-    'Shh… the diamond is awake.', 'Hello from the tiny corner!',
-    'Keep the good tunes coming.', 'Thanks for hanging out with me.',
-    'You found the happy button!', 'A little joy between songs.',
-    'Have you smiled today?', 'Looking sharp!', 'I believe in you.',
-    'The pixels are pleased.', 'You + music = a good time.',
-    'Sending one very small high five.', 'Glad you are here.',
-    'Press play on a nice day.', 'Okay, one more sparkle ✨', 'Sparkles!!!!!!',
-    'You found the party!', 'Shh… secret mode.', 'The pixels are dancing.',
-    'Disco diamond!', 'A shooting star!', 'Rare diamond discovered!',
-    'You again? ♥', 'Make a wish.', 'Secret handshake accepted.'
-  ];
+  const diamondMessages = window.Achievements.diamondMessages;
   const diamondHint = document.createElement('div');
   diamondHint.className = 'diamond-hint';
   diamondHint.setAttribute('role', 'status');
@@ -34,6 +8,7 @@
   const sparkleSound = new Audio('assets/magical-burst.mp3');
   sparkleSound.preload = 'auto';
   let diamondQueue = [], lastDiamondMessage, diamondHintTimer;
+  window.addEventListener('achievements-reset',()=>{diamondQueue=[];lastDiamondMessage=undefined;});
   $('windowDiamond').addEventListener('click', (event) => {
     if (!diamondQueue.length) {
       diamondQueue = [...diamondMessages];
@@ -78,7 +53,7 @@
     window.windowControls.getState().then(updateWindowState).catch(()=>{});
   }
   const artViewer=$('albumArtViewer'), artTrigger=$('albumArtOpen');
-  let artClosingTimer, artZoom = 1;
+  let artZoom = 1;
   const setArtZoom = value => {
     artZoom = Math.max(.5, Math.min(4, value));
     const image=$('albumArtLarge');
@@ -92,28 +67,25 @@
   $('albumArtLarge').addEventListener('load',()=>setArtZoom(artZoom));
   window.addEventListener('resize',()=>{if(artViewer.open)setArtZoom(artZoom);});
   const closeArt=()=>{
-    if(!artViewer.open || artViewer.classList.contains('closing'))return;
-    artViewer.classList.add('closing');
-    const reduced=document.body.classList.contains('reduce-motion') || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    artClosingTimer=setTimeout(()=>{artViewer.close();artViewer.classList.remove('closing');},reduced?0:220);
+    // The shared native-dialog transition fades the image and backdrop together.
+    if(artViewer.open)artViewer.close();
   };
   artTrigger.addEventListener('click',()=>{
     if(document.fullscreenElement || $('nowPlayingArt').hidden)return;
-    clearTimeout(artClosingTimer);artViewer.classList.remove('closing');
     artZoom=1;
     $('albumArtLarge').src=$('nowPlayingArt').src;
     setArtZoom(1);
     artViewer.showModal();
   });
   artViewer.addEventListener('wheel',event=>{
-    if(!artViewer.open || artViewer.classList.contains('closing'))return;
+    if(!artViewer.open)return;
     event.preventDefault();
     const pixels=event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?window.innerHeight:1);
     setArtZoom(artZoom*Math.exp(-Math.max(-240,Math.min(240,pixels))*.0015));
   },{passive:false});
   artViewer.addEventListener('cancel',event=>{event.preventDefault();closeArt();});
   artViewer.addEventListener('click',event=>{if(event.target===artViewer)closeArt();});
-  artViewer.addEventListener('close',()=>{clearTimeout(artClosingTimer);artTrigger.focus();});
+  artViewer.addEventListener('close',()=>artTrigger.focus());
   document.addEventListener('fullscreenchange',()=>{
     artTrigger.disabled=!!document.fullscreenElement || $('nowPlayingArt').hidden;
     if(document.fullscreenElement && artViewer.open)artViewer.close();

@@ -294,8 +294,10 @@ applyFullscreenPlayerMode();
     position(drag.left+event.clientX-drag.x,drag.top+event.clientY-drag.y);
   });
   ['pointerup','pointercancel','lostpointercapture'].forEach(name=>card.addEventListener(name,finish));
+  window.addEventListener('pointerup',finish);window.addEventListener('pointercancel',finish);
+  window.addEventListener('blur',()=>finish());
   card.addEventListener('dblclick',event=>{
-    if(document.fullscreenElement!==stage)return;
+    if(document.fullscreenElement!==stage || event.target.closest(controls))return;
     finish();reset(true);
   });
   document.addEventListener('fullscreenchange',()=>{finish();if(document.fullscreenElement!==stage)reset();});

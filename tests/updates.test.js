@@ -3,7 +3,7 @@ const {UpdateService}=require('../app-updates'),{restartBlockReason}=require('..
 function fixture(options={}){
   const updater=new EventEmitter();updater.checks=0;updater.installs=0;
   updater.checkForUpdates=async()=>{updater.checks++;updater.emit('checking-for-update');updater.emit('update-not-available',{version:'1.2.0'});return{};};
-  updater.quitAndInstall=(silent,restart)=>{assert.equal(silent,false);assert.equal(restart,true);updater.installs++;};
+  updater.quitAndInstall=(silent,restart)=>{assert.equal(silent,true);assert.equal(restart,true);updater.installs++;};
   let approved=false;
   const service=new UpdateService({updater,version:'1.2.0',enabled:true,onInstall:()=>approved=true,onInstallError:()=>approved=false,...options});
   return{updater,service,approved:()=>approved};
@@ -54,7 +54,7 @@ test('installer commands are restricted to the main app window',async()=>{
   assert.equal(handlers['updates:install']({sender:{}}).ok,false);assert.equal(installs,0);assert.equal(handlers['updates:install']({sender:mainWindow.webContents}).ok,true);assert.equal(installs,1);
 });
 test('electron-builder validates the public GitHub feed and compatible installer targets',async()=>{
-  const config=require('../package.json').build;await require('app-builder-lib/out/util/config/config').validateConfiguration(config,{isEnabled:false});assert.equal(config.publish[0].owner,'malabobski');assert.equal(config.publish[0].repo,'Visualiser-Studio');assert.equal(config.publish[0].releaseType,'draft');assert(!config.publish[0].token);assert.equal(config.win.target,'nsis');assert(config.mac.target.includes('zip'));
+  const config=require('../package.json').build;await require('app-builder-lib/out/util/config/config').validateConfiguration(config,{isEnabled:false});assert.equal(config.publish[0].owner,'malabobski');assert.equal(config.publish[0].repo,'Visualiser-Studio-Releases');assert.equal(config.publish[0].releaseType,'draft');assert(!config.publish[0].token);assert.equal(config.win.target,'nsis');assert(config.mac.target.includes('zip'));
 });
 
 
@@ -65,4 +65,14 @@ test('development manual checks report newer GitHub releases without downloading
 test('development manual checks recover from failures and distinguish older releases',async()=>{
   let failed=true;const {service}=fixture({enabled:false,version:'1.2.5',inspectLatestVersion:async()=>{if(failed)throw Error('offline');return 'v1.2.0';}});
   assert.match((await service.check()).message,/Couldn’t check GitHub/);failed=false;assert.match((await service.check()).message,/up to date/);service.dispose();
+});
+test('bridge release publishes to both repositories while embedding the new public feed first',async()=>{
+  const config=require('../build/bridge-release.cjs');
+  await require('app-builder-lib/out/util/config/config').validateConfiguration(config,{isEnabled:false});
+  assert.deepEqual(config.publish.map(provider=>provider.repo),['Visualiser-Studio-Releases','Visualiser-Studio']);
+  assert(config.publish.every(provider=>provider.releaseType==='draft'&&!provider.private&&!provider.token));
+  const source=require('fs').readFileSync(require('path').join(__dirname,'../main.js'),'utf8');
+  assert(source.includes('https://api.github.com/repos/malabobski/Visualiser-Studio-Releases/releases/latest'));
+  assert(!source.includes('https://api.github.com/repos/malabobski/Visualiser-Studio/releases/latest'));
+  assert.equal(require('../package.json').build.publish.length,1,'Normal future releases must only use the new repository');
 });

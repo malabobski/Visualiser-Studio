@@ -74,7 +74,7 @@ class UpdateService extends EventEmitter {
   install() {
     if (!this.enabled || this.state.status !== 'ready') return { ok: false, message: 'Download an update before restarting.' };
     this.set({ status: 'installing', message: 'Restarting to install your update…' });
-    try { this.onInstall(); this.updater.quitAndInstall(false,true); }
+    try { this.onInstall(); this.updater.quitAndInstall(true,true); }
     catch (error) { this.fail(error); }
     return { ok: this.state.status === 'installing', message: this.state.message };
   }

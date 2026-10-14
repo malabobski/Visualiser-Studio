@@ -49,27 +49,36 @@
     if(message==='Make a wish.')particles('constellation',28);
     if(message==='Rare diamond discovered!'){diamond.classList.add('egg-gold');chime();}
     if(message==='Secret handshake accepted.')particles('sparkle',12);
-    if(message==='You unlocked: absolutely nothing ♥'){
-      const badge=document.createElement('div');badge.className='egg-achievement';badge.textContent='🏆 Achievement unlocked · Absolutely nothing';document.body.append(badge);setTimeout(()=>badge.remove(),3500);
-    }
     if(message!=='Rare diamond discovered!')resetTimer=setTimeout(()=>{diamond.textContent='◈';diamond.classList.remove('egg-disco','egg-boop');},3500);
   }
   window.addEventListener('diamond-surprise',e=>surprise(e.detail,true));
+  let typedTarget=null;
+  function spellingSecret(){if(window.Achievements.unlock('handshake'))surprise('Secret handshake accepted.');}
   document.addEventListener('keydown',e=>{
-    if(e.ctrlKey||e.metaKey||e.altKey||e.target.closest('input,textarea,select,[contenteditable],dialog[open]'))return;
-    if(e.key.length!==1)return;typed=(typed+e.key.toLowerCase()).slice(-8);
-    if(typed==='sparkles'){typed='';showToast('Secret handshake accepted.');surprise('Secret handshake accepted.');}
+    if(e.ctrlKey||e.metaKey||e.altKey||e.isComposing){typed='';return;}
+    if(e.target.matches?.('input[type="password"]'))return;
+    if(e.key.length!==1){if(e.key==='Backspace'||e.key==='Escape')typed='';return;}
+    if(typedTarget!==e.target){typed='';typedTarget=e.target;}
+    typed=(typed+e.key.toLowerCase()).slice(-8);
+    if(typed==='sparkles'){typed='';spellingSecret();}
   });
+  document.addEventListener('input',e=>{
+    const field=e.target;if(field.matches?.('input[type="password"]'))return;
+    const text=typeof field.value==='string'?field.value:field.isContentEditable?field.textContent:'';
+    if(/(?:^|\W)sparkles(?:$|\W)/i.test(text))spellingSecret();
+  });
+  window.addEventListener('achievements-reset',()=>{typed='';typedTarget=null;});
   // A returning visitor gets a quiet greeting on their first diamond click.
   try{
     const visits=Number(localStorage.getItem('visualiserDiamondVisits')||0)+1;
     localStorage.setItem('visualiserDiamondVisits',String(visits));
-    if(visits>1)diamond.addEventListener('click',()=>{if(visits%5===0)setTimeout(()=>showToast('You again? ♥'),100);},{once:true});
+    if(visits>1)diamond.addEventListener('click',()=>{if(visits%5===0)setTimeout(()=>{showToast('You again? ♥');window.Achievements.unlock('returning');},100);},{once:true});
   }catch{}
   const fanfare=new Audio('assets/disco-fanfare.mp3');
   const emptyRecord=document.getElementById('emptyRecord');let recordTimer,recordFadeTimer;
   const recordFace=document.createElement('span');recordFace.className='egg-cd-face';recordFace.setAttribute('aria-hidden','true');emptyRecord.append(recordFace);
   emptyRecord.addEventListener('click',()=>{
+    window.Achievements.unlock('record');
     clearTimeout(recordTimer);clearTimeout(recordFadeTimer);emptyRecord.classList.remove('egg-cd','egg-cd-fading');void emptyRecord.offsetWidth;emptyRecord.classList.add('egg-cd');
     recordTimer=setTimeout(()=>{
       emptyRecord.classList.add('egg-cd-fading');
@@ -96,18 +105,18 @@
     document.querySelector('[data-template-id="secret-disco"]')?.scrollIntoView({block:'nearest',behavior:reduced()?'instant':'smooth'});
   });
   const heading=document.querySelector('#screen-live h2');let headingTimer;
-  heading?.addEventListener('dblclick',()=>{clearTimeout(headingTimer);heading.textContent='Alive';headingTimer=setTimeout(()=>heading.textContent='Live',1800);});
+  heading?.addEventListener('dblclick',()=>{window.Achievements.unlock('alive');clearTimeout(headingTimer);heading.textContent='Alive';headingTimer=setTimeout(()=>heading.textContent='Live',1800);});
   document.addEventListener('pointerdown',e=>{
     const art=e.target.closest('.media-art');
     if(art&&document.getElementById('nowPlayingArt').hidden&&!reduced()){
-      art.classList.remove('egg-record');void art.offsetWidth;art.classList.add('egg-record');setTimeout(()=>art.classList.remove('egg-record'),1800);
+      window.Achievements.unlock('art-record');art.classList.remove('egg-record');void art.offsetWidth;art.classList.add('egg-record');setTimeout(()=>art.classList.remove('egg-record'),1800);
     }
   },true);
   window.addEventListener('visualiser-export-complete',()=>{
-    try{const count=Number(localStorage.getItem('visualiserCompletedExports')||0)+1;localStorage.setItem('visualiserCompletedExports',String(count));if(count===100){showToast('100 exports! Your pixels deserve a party.');particles('confetti',70);}}catch{}
+    try{const count=Number(localStorage.getItem('visualiserCompletedExports')||0)+1;localStorage.setItem('visualiserCompletedExports',String(count));if(count>=100)window.Achievements.unlock('hundred-exports');if(count===100){showToast('100 exports! Your pixels deserve a party.');particles('confetti',70);}}catch{}
   });
   let sleepTimer;
-  audio.addEventListener('pause',()=>{clearTimeout(sleepTimer);sleepTimer=setTimeout(()=>{if(audio.paused&&audio.currentTime>0){const sleep=document.createElement('span');sleep.id='eggSleeping';sleep.setAttribute('aria-label','Sleeping');for(let i=0;i<3;i++){const z=document.createElement('span');z.textContent='z';z.setAttribute('aria-hidden','true');z.style.setProperty('--sleep-delay',`${i*.6}s`);sleep.append(z);}sleep.className='egg-sleeping';document.querySelector('main .stage').append(sleep);}},20000);});
+  audio.addEventListener('pause',()=>{clearTimeout(sleepTimer);sleepTimer=setTimeout(()=>{if(audio.paused&&audio.currentTime>0){window.Achievements.unlock('sleep');document.getElementById('eggSleeping')?.remove();const sleep=document.createElement('span');sleep.id='eggSleeping';sleep.setAttribute('aria-label','Sleeping');for(let i=0;i<3;i++){const z=document.createElement('span');z.textContent='z';z.setAttribute('aria-hidden','true');z.style.setProperty('--sleep-delay',`${i*.6}s`);sleep.append(z);}sleep.className='egg-sleeping';document.querySelector('main .stage').append(sleep);}},20000);});
   audio.addEventListener('play',()=>{clearTimeout(sleepTimer);document.getElementById('eggSleeping')?.remove();});
   const credits=document.createElement('dialog');credits.className='egg-credits';credits.setAttribute('aria-label','Visualiser Studio credits');
   const close=document.createElement('button');close.type='button';close.className='egg-credits-close';close.textContent='×';close.setAttribute('aria-label','Close credits');close.onclick=()=>credits.close();
@@ -118,7 +127,7 @@
     const entry=document.createElement('p'),label=document.createElement('span'),name=document.createElement('strong');label.textContent=role;name.textContent='malchim';entry.append(label,name);roll.append(entry);
   });
   const end=document.createElement('p');end.textContent='Made with love · malchim';roll.append(end);viewport.append(roll);credits.append(close,viewport);document.body.append(credits);
-  document.getElementById('settingsVersion').onclick=()=>{credits.showModal();roll.style.animation='none';void roll.offsetWidth;roll.style.animation='';viewport.scrollTop=0;};
+  document.getElementById('settingsVersion').onclick=()=>{window.Achievements.unlock('credits');credits.showModal();roll.style.animation='none';void roll.offsetWidth;roll.style.animation='';viewport.scrollTop=0;};
   credits.addEventListener('click',e=>{const r=credits.getBoundingClientRect();if(e.target===credits&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))credits.close();});
 })();
 // A secret arrow sequence exists only while Keyboard shortcuts is open.
@@ -135,7 +144,7 @@
     }catch{}
   }
   function celebrate(){
-    if(running)return;running=true;sound();
+    if(running)return;running=true;window.Achievements.unlock('cheat-code');sound();
     const reduced=document.body.classList.contains('reduce-motion')||matchMedia('(prefers-reduced-motion: reduce)').matches;
     const effect=document.createElement('div');effect.className='shortcut-secret-effect';effect.setAttribute('aria-hidden','true');document.body.append(effect);
     const rect=card.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;

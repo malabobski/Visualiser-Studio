@@ -33,7 +33,7 @@ ipcMain.handle('window:confirm-exit',event=>{
 // there is for the HTTP Interactions endpoint, a different feature — Rich
 // Presence over discord-rpc's local IPC transport only needs this ID.
 const DISCORD_CLIENT_ID = '1047543674596249680';
-const REPOSITORY_URL = 'https://github.com/malabobski/Visualiser-Studio';
+const WEBSITE_URL = 'https://malchim.malabobski.workers.dev/';
 
 let discordClient;
 let discordReady = false;
@@ -56,8 +56,8 @@ function flushDiscordActivity(){
     activity:{
       ...pendingDiscordActivity,
       timestamps:{start:activityStart},
-      assets:{large_image:'app_icon',large_text:'View Visualiser Studio on GitHub',large_url:REPOSITORY_URL},
-      buttons:[{label:'View on GitHub',url:REPOSITORY_URL}],
+      assets:{large_image:'app_icon',large_text:'Visit the Visualiser Studio website',large_url:WEBSITE_URL},
+      buttons:[{label:'Visit website',url:WEBSITE_URL}],
       instance:false
     }
   }).catch(()=>{discordLastKey='';});
@@ -125,7 +125,7 @@ const updatePreferencesPath = () => path.join(app.getPath('userData'),'update-pr
 const updates = new UpdateService({
   updater:autoUpdater,version:app.getVersion(),
   inspectLatestVersion:async()=>{
-    const response=await fetch('https://api.github.com/repos/malabobski/Visualiser-Studio/releases/latest',{headers:{Accept:'application/vnd.github+json','User-Agent':'Visualiser-Studio'},signal:AbortSignal.timeout(15000)});
+    const response=await fetch('https://api.github.com/repos/malabobski/Visualiser-Studio-Releases/releases/latest',{headers:{Accept:'application/vnd.github+json','User-Agent':'Visualiser-Studio'},signal:AbortSignal.timeout(15000)});
     if(!response.ok)throw Error('Release check failed');
     return (await response.json()).tag_name;
   },

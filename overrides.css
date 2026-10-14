@@ -590,17 +590,9 @@ button.media-art{padding:0;width:100%;color:#ffffff55;cursor:zoom-in;font-size:9
 button.media-art:disabled{cursor:default;opacity:1}
 button.media-art:enabled:hover img{filter:brightness(1.04)}
 .album-art-viewer{padding:0;border:0;border-radius:20px;background:transparent;overflow:visible;max-width:calc(100vw - 64px);max-height:calc(100vh - 64px);box-shadow:0 30px 100px #0008}
-.album-art-viewer[open]{animation:albumArtIn .3s cubic-bezier(.2,.75,.3,1) both}
 .album-art-viewer img{display:block;width:auto;height:auto;max-width:calc(100vw - 64px);max-height:calc(100vh - 64px);object-fit:contain;border-radius:20px}
-.album-art-viewer::backdrop{background:#080b16a6;backdrop-filter:blur(16px);animation:albumBackdropIn .3s ease both}
-.album-art-viewer.closing{animation:albumArtOut .22s ease both}
-.album-art-viewer.closing::backdrop{animation:albumBackdropOut .22s ease both}
+.album-art-viewer::backdrop{background:#080b16a6;backdrop-filter:blur(16px)}
 @keyframes albumArtIn{from{opacity:0;transform:translateY(12px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes albumArtOut{from{opacity:1;transform:scale(1)}to{opacity:0;transform:translateY(8px) scale(.96)}}
-@keyframes albumBackdropIn{from{opacity:0}to{opacity:1}}
-@keyframes albumBackdropOut{from{opacity:1}to{opacity:0}}
-@media(prefers-reduced-motion:reduce){.album-art-viewer[open],.album-art-viewer::backdrop{animation:none}}
-body.reduce-motion .album-art-viewer,body.reduce-motion .album-art-viewer::backdrop{animation:none}
 /* Open cover art large, with wheel zoom contained inside the image window. */
 .album-art-viewer{overflow:hidden;max-width:calc(100vw - 48px);max-height:calc(100vh - 48px)}
 .album-art-viewer img{width:min(84vw,84vh);height:auto;max-width:calc(100vw - 48px);max-height:calc(100vh - 48px);transform-origin:center;transition:transform .16s ease-out;will-change:transform}

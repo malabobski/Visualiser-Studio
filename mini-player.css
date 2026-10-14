@@ -17,3 +17,11 @@ button{font-family:'Space Grotesk',sans-serif;border:1px solid transparent;box-s
 /* Match the main app's quiet floating surfaces. */
 .mini-card{background:linear-gradient(150deg,#242a39e8,#181e2be8);border-color:#ffffff16;box-shadow:inset 0 1px #ffffff06}.mini-options-menu{background:#202737f5;border-color:#ffffff18;box-shadow:0 12px 32px #03071050}.mini-art{background:#252e40}.mini-meta strong{letter-spacing:-.02em}.mini-options-menu button{background:#293246}.mini-transport{border-color:#ffffff17;box-shadow:0 8px 22px #03071035}
 #miniOptions::details-content{opacity:0;transform:translateY(5px);transition:opacity .2s ease,transform .2s ease,content-visibility .2s allow-discrete;overflow:visible}#miniOptions[open]::details-content{opacity:1;transform:translateY(0)}#miniOptions:not([open])::details-content{pointer-events:none}@media(prefers-reduced-motion:reduce){#miniOptions::details-content{transition:none}}
+#miniOptions{z-index:40}#miniOptions summary{width:30px;height:30px}
+.mini-options-menu{position:fixed;right:16px;top:58px;width:min(300px,calc(100vw - 32px));max-height:calc(100dvh - 74px);padding:16px;gap:14px;scrollbar-gutter:stable;overscroll-behavior:contain}
+.mini-options-menu,.mini-options-menu *{-webkit-app-region:no-drag;app-region:no-drag}
+.mini-options-menu label{gap:10px}.mini-options-menu select{min-height:36px}.mini-options-menu input[type=range]{margin:5px 0}.mini-options-menu button{min-height:38px}
+body.mini-settings-open .resize-arc{pointer-events:none;opacity:0}
+.mini-options-menu[popover]{inset:16px 54px auto auto;margin:0;width:min(300px,calc(100vw - 76px));max-height:calc(100dvh - 32px)}
+.mini-options-menu[popover]:not(:popover-open){display:none}
+body.mini-settings-open .mini-card,body.mini-settings-open .mini-card *{-webkit-app-region:no-drag;app-region:no-drag}

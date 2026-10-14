@@ -1,0 +1,4 @@
+html body,html body *{-webkit-user-select:none;user-select:none}
+/* Names, searches and colour values retain normal text editing. */
+html body :is(input,textarea,[contenteditable]:not([contenteditable="false"])){-webkit-user-select:text;user-select:text}
+html body img{-webkit-user-drag:none}

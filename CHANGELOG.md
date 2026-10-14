@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.7
+
+- Added the in-app bridge to the public Visualiser-Studio-Releases update repository.
+- Added branded setup, achievements, clickable discovery notifications and progress reset.
+- Improved fullscreen media controls, draggable cover art, mini-player settings and dialog closing.
+- Added interface selection/Tab behaviour and Discord website links.
+
+
 ## 1.2.6
 
 - Added Surprise me to the Create Style menu: a new style with one of five coordinated colour palettes.
