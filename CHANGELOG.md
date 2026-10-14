@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.8
+
+- Added a Show player recovery button to the Live fullscreen toolbar when the media player is hidden.
+- Restores the previous cover-only or pinned player mode and remembers the visibility setting.
+- Published through the public releases repository used by v1.2.7 and newer.
+
+
 ## 1.2.7
 
 - Added the in-app bridge to the public Visualiser-Studio-Releases update repository.

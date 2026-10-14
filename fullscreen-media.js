@@ -1,6 +1,9 @@
 (() => {
   const stage=$('liveStage'),card=$('nowPlayingCard'),art=$('albumArtOpen'),options=$('mediaOptions');
   const menu=options.querySelector('.media-options-menu'),mode=$('fullscreenPlayerMode');
+  const restore=document.createElement('button');restore.id='restoreFullscreenPlayer';restore.type='button';restore.className='stage-toggle';restore.textContent='Show player';restore.title='Bring back the fullscreen media player';restore.hidden=true;
+  stage.querySelector('.live-stage-toolbar').prepend(restore);
+  let lastVisibleMode=mode.value==='pinned'?'pinned':'auto';
   const preference='visualiserFullscreenOverlay';
   let settings={size:72};
   try{const saved=JSON.parse(localStorage.getItem(preference)||'{}');if([56,72,88].includes(saved.size))settings.size=saved.size;}catch{}
@@ -39,6 +42,7 @@
   function sync(){
     finishCoverDrag();clearTimeout(readyTimer);expanded=false;
     stage.classList.toggle('fullscreen-media-stage',fullscreen());card.classList.remove('media-expanded');controlsReady(!fullscreen());
+    restore.hidden=!fullscreen()||mode.value!=='hidden';
     card.style.setProperty('--media-cover-size',settings.size+'px');
     art.disabled=fullscreen()?false:$('nowPlayingArt').hidden;art.setAttribute('aria-label',fullscreen()?'Drag to move; click for media controls':'View cover art');
     if(fullscreen()&&mode.value==='pinned')expand();
@@ -64,7 +68,8 @@
   art.addEventListener('click',event=>{if(!fullscreen())return;event.preventDefault();if(performance.now()<draggedUntil)return;if(expanded)collapse();else expand();});
   document.addEventListener('pointerdown',event=>{if(fullscreen()&&expanded&&!card.contains(event.target)&&!event.target.closest('.unified-menu'))collapse();});
   options.addEventListener('toggle',()=>{if(options.open)expand();});
-  document.addEventListener('fullscreenchange',sync);mode.addEventListener('change',()=>{options.open=false;sync();});
+  document.addEventListener('fullscreenchange',sync);mode.addEventListener('change',()=>{if(mode.value!=='hidden')lastVisibleMode=mode.value;options.open=false;sync();});
+  restore.addEventListener('click',()=>{mode.value=lastVisibleMode;mode.dispatchEvent(new Event('change',{bubbles:true}));art.focus({preventScroll:true});});
   $('fullscreenCoverSize').addEventListener('change',()=>{settings.size=Number($('fullscreenCoverSize').value);card.style.setProperty('--media-cover-size',settings.size+'px');try{localStorage.setItem(preference,JSON.stringify(settings));}catch{}});
   new ResizeObserver(clampPlayer).observe(card);
   // A top-layer settings panel stays clickable outside the animated card's bounds.

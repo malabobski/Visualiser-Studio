@@ -10,6 +10,8 @@
 .live-stage.fullscreen-media-stage:has(#nowPlayingCard:hover){cursor:auto}
 .live-stage.fullscreen-media-stage>#nowPlayingCard .media-art{cursor:grab;touch-action:none}
 .live-stage.fullscreen-media-stage>#nowPlayingCard.cover-moving .media-art{cursor:grabbing}
+#restoreFullscreenPlayer{width:auto;padding:0 12px;font:500 11px var(--control-font)}
+#restoreFullscreenPlayer[hidden]{display:none}
 .media-options-menu[popover]{position:fixed;inset:auto;margin:0;max-height:calc(100dvh - 32px);overflow-y:auto;scrollbar-gutter:stable;box-sizing:border-box;padding:16px;gap:14px}
 .media-options-menu[popover]:not(:popover-open){display:none}.media-options-menu[popover]:popover-open{display:grid}
 .media-options-menu .fullscreen-overlay-setting{display:grid;gap:8px;padding:12px 0 0;border:0;border-top:1px solid #ffffff12;border-radius:0;background:none;font:11px var(--control-font)}

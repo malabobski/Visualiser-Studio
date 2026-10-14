@@ -1,6 +1,6 @@
 {
   "name": "audio-visualiser-studio",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "private": true,
   "description": "Turn audio tracks into visualiser videos.",
   "main": "main.js",
