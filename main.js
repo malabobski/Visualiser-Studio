@@ -26,6 +26,7 @@ if (isMacPreview) {
 let desktopSourceAppId = '';
 
 const RPC = require('discord-rpc');
+require('discord-rpc/src/transports')['visualiser-ipc'] = require('./discord-ipc').DiscordTransport;
 
 const APP_TITLE = 'Visualiser Studio';
 const ICON_PATH = path.join(__dirname, 'build', 'icon.png');
@@ -53,6 +54,12 @@ let discordEnabled = false;
 const activityStart = Date.now();
 let pendingDiscordActivity={details:'Getting things ready…',state:'Visualiser Studio'};
 let discordLastKey='',discordLastSent=0,discordTimer;
+let discordConnecting=false,discordStopped=false,discordRetry;
+function retryDiscord(){
+  clearTimeout(discordRetry);
+  if(discordStopped||!discordEnabled)return;
+  discordRetry=setTimeout(setupDiscordRPC,15000);discordRetry.unref?.();
+}
 function flushDiscordActivity(){
   if(!discordEnabled || !discordReady || !discordClient)return;
   const key=JSON.stringify(pendingDiscordActivity);
@@ -79,15 +86,25 @@ function flushDiscordActivity(){
 // running, login() just rejects and we quietly do nothing — Rich Presence
 // is a nice-to-have, never something the app should depend on.
 function setupDiscordRPC() {
-  RPC.register(DISCORD_CLIENT_ID);
-  discordClient = new RPC.Client({ transport: 'ipc' });
+  if(discordStopped||discordConnecting||discordReady)return;
+  clearTimeout(discordRetry);discordConnecting=true;
+  const client=discordClient = new RPC.Client({ transport: 'visualiser-ipc' });
+  const disconnected=()=>{
+    if(discordClient!==client)return;
+    discordConnecting=false;discordReady=false;discordLastKey='';retryDiscord();
+  };
+  client.on('disconnected',disconnected);
+  client.on('error',()=>{disconnected();client.destroy().catch(()=>{});});
 
   discordClient.on('ready', () => {
+    if(discordClient!==client)return;
+    discordConnecting=false;
     discordReady = true;
     flushDiscordActivity();
   });
 
   discordClient.login({ clientId: DISCORD_CLIENT_ID }).catch((err) => {
+    disconnected();client.destroy().catch(()=>{});
     console.log('Discord RPC unavailable:', err.message);
   });
 }
@@ -107,6 +124,8 @@ ipcMain.on('set-discord-enabled', (event, enabled) => {
   discordLastKey='';
   if(enabled)flushDiscordActivity();
   else if(discordReady)discordClient.clearActivity().catch(()=>{});
+  if(enabled&&!discordReady)setupDiscordRPC();
+  if(!enabled)clearTimeout(discordRetry);
 });
 
 // Only one copy of the app should ever run at once — a second copy would
@@ -155,6 +174,20 @@ ipcMain.handle('updates:install',event=>isUpdateWindow(event)?updates.install():
 app.on('will-quit',()=>updates.dispose());
 
 const isVolumeWindow = event => event.sender === mainWindow?.webContents || event.sender === miniWindow?.webContents;
+let interfaceZoom=100;
+let interfaceWrite=Promise.resolve();
+const interfacePreferencesPath=()=>path.join(app.getPath('userData'),'interface-preferences.json');
+ipcMain.handle('interface:zoom-get',event=>isVolumeWindow(event)?interfaceZoom:100);
+ipcMain.handle('interface:zoom-set',async(event,value)=>{
+  if(!isUpdateWindow(event)||!Number.isFinite(value)||value<75||value>150||value%5!==0)throw Error('Invalid interface size.');
+  const save=interfaceWrite.then(async()=>{
+    const file=interfacePreferencesPath();await fsp.mkdir(path.dirname(file),{recursive:true});
+    await fsp.writeFile(file,JSON.stringify({zoom:value}));interfaceZoom=value;
+    if(mainWindow&&!mainWindow.isDestroyed()){mainWindow.webContents.setZoomMode('isolated');mainWindow.webContents.setZoomFactor(value/100);}
+    return value;
+  });
+  interfaceWrite=save.catch(()=>{});return save;
+});
 let macMediaPreference = 'auto';
 const macPreferencesPath = () => path.join(app.getPath('userData'), 'mac-media-preferences.json');
 ipcMain.handle('mac:status', event => {
@@ -195,6 +228,7 @@ ipcMain.handle('media-volume:set', async (event, request) => {
 });
 app.on('will-quit', () => {
   mediaVolume.stop();
+  discordStopped=true;clearTimeout(discordRetry);clearTimeout(discordTimer);
   macNowPlaying?.stop();
   macAutomation?.stop();
   if (nowPlayingProcess) nowPlayingProcess.kill();
@@ -342,6 +376,7 @@ ipcMain.handle('mini:open', async () => {
   if(miniWindow && !miniWindow.isDestroyed()){miniWindow.show();miniWindow.focus();return;}
   miniWindow=new BrowserWindow({width:454,height:244,minWidth:340,minHeight:220,frame:false,transparent:true,backgroundColor:'#00000000',alwaysOnTop:true,resizable:false,show:false,skipTaskbar:false,title:'Visualiser Studio · Mini player',icon:path.join(__dirname,'build','mini-icon.png'),webPreferences:{contextIsolation:true,preload:path.join(__dirname,'preload.js')}});
   miniWindow.setOpacity(miniOpacity);
+  miniWindow.webContents.on('did-finish-load',()=>{miniWindow.webContents.setZoomMode('isolated');miniWindow.webContents.setZoomFactor(1);});
   miniWindow.once('ready-to-show',()=>{if(miniWindow){miniWindow.show();mainWindow?.hide();}});
   miniWindow.on('closed',()=>{miniWindow=null;if(mainWindow && !mainWindow.isDestroyed()){mainWindow.show();mainWindow.focus();}});
   await miniWindow.loadURL('http://localhost:'+mainAppPort+'/mini-player.html');
@@ -383,13 +418,14 @@ async function createWindow() {
   const { port: activePort } = await serverStartPromise;
 
   mainAppPort=activePort;
+  const workArea=screen.getPrimaryDisplay().workAreaSize;
   mainWindow = new BrowserWindow({
     title: APP_TITLE,
     icon: ICON_PATH,
-    width: 1320,
-    height: 880,
-    minWidth: 980,
-    minHeight: 640,
+    width: Math.min(1320,workArea.width),
+    height: Math.min(880,workArea.height),
+    minWidth: 640,
+    minHeight: 420,
     backgroundColor: '#10121b',
     autoHideMenuBar: true,
     frame: process.platform === 'darwin',
@@ -423,6 +459,8 @@ async function createWindow() {
   // Stop Ctrl+scroll from zooming the whole window — this app uses Ctrl+scroll
   // on the volume slider for fine adjustment, and the two would otherwise fight.
   mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow.webContents.setZoomMode('isolated');
+    mainWindow.webContents.setZoomFactor(interfaceZoom/100);
     mainWindow.webContents.setVisualZoomLevelLimits(1, 1);
     mainWindow.setTitle(APP_TITLE);
   });
@@ -440,6 +478,7 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  try{const saved=JSON.parse(await fsp.readFile(interfacePreferencesPath(),'utf8'));if(Number.isFinite(saved.zoom)&&saved.zoom>=75&&saved.zoom<=150&&saved.zoom%5===0)interfaceZoom=saved.zoom;}catch{}
   if(process.platform === 'darwin') {
     try { const saved=JSON.parse(await fsp.readFile(macPreferencesPath(),'utf8'));if(allowedApps.includes(saved.preferred))macMediaPreference=saved.preferred; } catch {}
     require('./mac-menu').installMacMenu({ Menu, app, showMain: restoreFullApp, requestExit: () => app.quit() });

@@ -1,4 +1,8 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
+contextBridge.exposeInMainWorld('interfaceScale', {
+  get:()=>ipcRenderer.invoke('interface:zoom-get'),
+  set:value=>ipcRenderer.invoke('interface:zoom-set',value)
+});
 contextBridge.exposeInMainWorld('desktopPlatform', {
   os: process.platform,
   macStatus: () => ipcRenderer.invoke('mac:status'),

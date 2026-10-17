@@ -50,7 +50,8 @@
       "!MAC_TESTING.md",
       "!build/mac-preview.cjs",
       "!build/verify-mac.cjs",
-      "!.github/**"
+      "!.github/**",
+      "!build/create-mac-icon.cjs"
     ],
     "asarUnpack": [
       "node_modules/ffmpeg-static/**",
@@ -75,7 +76,8 @@
         "NSAudioCaptureUsageDescription": "Visualiser Studio uses system audio to animate live music visualisers.",
         "NSAppleEventsUsageDescription": "Visualiser Studio reads track details and controls playback and volume in Spotify and Apple Music."
       },
-      "entitlements": "build/entitlements.mac.plist"
+      "entitlements": "build/entitlements.mac.plist",
+      "icon": "build/icon-mac.icns"
     },
     "linux": {
       "target": "AppImage"

@@ -1,4 +1,4 @@
-# Visualiser Studio — Mac preview 1.2.9-mac.1
+# Visualiser Studio — Mac preview 1.2.9-mac.2
 
 Thanks for testing the Mac version! This preview targets macOS 14.2 or newer.
 
@@ -59,3 +59,11 @@ short recording helps. If it fails to start, include the crash/error message.
 
 Apple's first-launch guidance:
 https://support.apple.com/en-gb/102445
+
+## Changes in this preview
+
+- Settings → Interface size adds saved 75–150% zoom. Try 100% and 125% plus your normal macOS display setting.
+- Narrow/short windows keep controls accessible; MIDI import and action buttons keep their intended sizing.
+- Mouse-wheel and two-finger scrolling work on sliders, including MIDI/customise/settings sliders.
+- The Dock icon has standard optical padding. Compare its size with your other apps.
+- Discord checks multiple socket locations and reconnects when Discord opens or restarts. Test both app-launch orders with Rich Presence enabled.

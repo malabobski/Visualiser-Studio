@@ -1,4 +1,4 @@
-# Mac preview: 1.2.9-mac.1
+# Mac preview: 1.2.9-mac.2
 
 Development preview targeting macOS 14.2+, built separately for Apple Silicon
 and Intel. The production Windows version and its release feed stay at 1.2.8.

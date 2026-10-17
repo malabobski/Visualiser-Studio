@@ -12,7 +12,7 @@ const { execFileSync, spawn } = require('node:child_process');
   const asar = await import('@electron/asar');
   const metadata = JSON.parse(asar.extractFile(asarPath, 'package.json'));
   assert.equal(metadata.visualiserMacPreview, true);
-  assert.equal(metadata.version, '1.2.9-mac.1');
+  assert.equal(metadata.version, '1.2.9-mac.2');
   for (const file of ['main.js', 'mac-automation.js', 'mac-now-playing.js', 'mac-platform.js', 'mac-platform.css', 'index.html', 'mini-player.html']) {
     assert(asar.extractFile(asarPath, file).equals(fs.readFileSync(file)), 'Packaged file differs: ' + file);
   }

@@ -1,0 +1,45 @@
+/* Respond to the available CSS viewport, including OS display scaling. */
+html body main { box-sizing:border-box; min-width:0; }
+html body main .controls,html body main .options,html body main .actions { min-width:0; }
+html body main .controls>.audio-import-stack { grid-template-columns:minmax(0,1fr); }
+html body main .controls>.audio-import-stack>.drop-zone { grid-column:1; grid-row:1; }
+html body main .controls>.audio-import-stack>.midi-import-slot { grid-column:1; grid-row:2; width:100%; }
+html body main .controls>.audio-import-stack>input[hidden] { display:none!important; }
+html body main:not(.controls-left) .controls { container-type:inline-size; }
+html body main:not(.controls-left) .controls>.audio-import-stack { min-width:0; min-height:164px; }
+html body main:not(.controls-left) .audio-import-stack.show-midi { grid-template-rows:minmax(112px,1fr) 44px; }
+html body main:not(.controls-left) .audio-import-stack>.drop-zone { height:100%!important; }
+html body main:not(.controls-left) .audio-import-stack #attachMidi { min-width:0; line-height:1.3; font-size:11px; }
+.interface-scale-label { display:grid; grid-template-columns:1fr auto; gap:12px; }
+.interface-scale-label input { grid-column:1/-1; width:100%; }
+#midiSetup .midi-nav-group,#midiSetup .midi-nav-overview { min-width:0; }
+#midiSetup .midi-alignment-nav button { white-space:normal; line-height:1.4; min-height:34px; }
+#interfaceScaleReset { margin-top:12px; }
+#midiSetup .midi-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+#midiSetup .midi-actions>button { white-space:normal; overflow-wrap:anywhere; min-height:40px; line-height:1.4; }
+@media(max-width:1000px) {
+  html body main.controls-left>.controls { display:flex; flex-direction:column; align-items:stretch; height:auto; }
+  html body main.controls-left .options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; }
+  html body main.controls-left .intro { grid-template-columns:1fr; gap:12px; }
+}
+@media(max-width:1100px) {
+  html body main:not(.controls-left) .controls { grid-template-columns:160px minmax(0,1fr); grid-template-areas:'file options' 'drop options' 'actions actions' 'status status'; gap:14px 20px; }
+  html body main:not(.controls-left) .controls>.actions { display:grid; grid-template-columns:repeat(4,minmax(0,1fr))!important; padding:0; border:0; }
+}
+@media(max-width:780px) {
+  html body main:not(.controls-left) .controls { grid-template-columns:minmax(0,1fr); grid-template-areas:'file' 'drop' 'options' 'actions' 'status'; padding:16px; }
+  html body main:not(.controls-left) .controls>.audio-import-stack { min-height:132px; }
+  html body main:not(.controls-left) .controls>.actions { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
+  html body main.controls-left { display:flex; flex-direction:column; height:auto; overflow:visible; }
+  html body main.controls-left>.controls { position:relative; width:100%; max-height:none; height:auto; flex:none; box-sizing:border-box; }
+  html body main.controls-left>.stage { flex:none; width:100%; margin-top:20px; }
+  #midiSetup .midi-setup-workspace { grid-template-columns:1fr; grid-template-rows:auto auto; height:auto; }
+  #midiSetup { overflow-y:auto; }
+  #midiSetup .midi-stage-column { grid-row:1; grid-template-rows:28vh auto; }
+  #midiSetup .midi-setup-editor { height:55vh; box-sizing:border-box; }
+}
+@media(max-height:700px) and (min-width:781px) {
+  html body main { padding-top:24px; }
+  html body main .intro { margin-bottom:16px; }
+  #midiSetup { height:calc(100vh - 24px); max-height:calc(100vh - 24px); }
+}

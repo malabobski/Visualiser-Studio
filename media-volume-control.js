@@ -71,11 +71,6 @@
         clearTimeout(timer); timer = setTimeout(flush, 80);
       });
       slider.addEventListener('change', finishEdit);
-      slider.addEventListener('wheel', event => {
-        if (slider.disabled) return; event.preventDefault();
-        slider.value = Math.max(0, Math.min(100, Number(slider.value) + (event.deltaY < 0 ? 1 : -1) * (event.ctrlKey ? 1 : 5)));
-        slider.dispatchEvent(new Event('input', { bubbles: true }));
-      }, { passive: false });
       const storage = event => { if (event.key === preference && ['system', 'app'].includes(event.newValue) && event.newValue !== select.value) { select.value = event.newValue; changeTarget(); } };
       window.addEventListener('storage', storage); window.addEventListener('focus', refresh);
       const poll = setInterval(() => { sourceChanged(); refresh(); }, 1000);
