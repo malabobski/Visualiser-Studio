@@ -11,6 +11,7 @@ html body main:not(.controls-left) .audio-import-stack.show-midi { grid-template
 html body main:not(.controls-left) .audio-import-stack>.drop-zone { height:100%!important; }
 html body main:not(.controls-left) .audio-import-stack #attachMidi { min-width:0; line-height:1.3; font-size:11px; }
 .interface-scale-label { display:grid; grid-template-columns:1fr auto; gap:12px; }
+.interface-scale-label,.interface-scale-label>output { font:500 12px var(--control-font,'Space Grotesk',sans-serif); color:inherit; }
 .interface-scale-label input { grid-column:1/-1; width:100%; }
 #midiSetup .midi-nav-group,#midiSetup .midi-nav-overview { min-width:0; }
 #midiSetup .midi-alignment-nav button { white-space:normal; line-height:1.4; min-height:34px; }

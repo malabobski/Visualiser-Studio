@@ -1,0 +1,18 @@
+.settings-search { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; margin:0 0 18px; }
+.settings-search input,#exportPattern { width:100%; box-sizing:border-box; border:1px solid #ffffff20; border-radius:11px; padding:11px 13px; background:#171e2d; color:#e6e9f6; font:12px var(--control-font,'Space Grotesk',sans-serif); }
+.settings-search button { padding:0 12px; border-radius:10px; }
+.settings-search small { grid-column:1/-1; color:#a6b2cc; font:12px var(--control-font,'Space Grotesk',sans-serif); }
+[data-settings-search-hidden],#exportPatternRow[hidden],#exportPatternHelp[hidden],.settings-search [hidden] { display:none!important; }
+.settings-row #exportNaming { margin:8px 0; }
+.settings-row #exportPatternRow { display:grid; gap:8px; }
+.settings-row #exportFilenamePreview { display:block; overflow-wrap:anywhere; }
+.slider-value-control { cursor:text; text-underline-offset:3px; }
+.slider-value-control:hover { text-decoration:underline dotted; }
+button.slider-value-generated { appearance:none; background:transparent; border:0; box-shadow:none; padding:2px 5px; min-width:30px; width:auto; height:auto; color:inherit; font:11px var(--control-font,'Space Grotesk',sans-serif); }
+.preview-controls button.slider-value-generated { background:transparent; height:auto; min-width:26px; padding:0 2px; }
+.slider-number-editor { position:fixed; inset:auto; margin:0; box-sizing:border-box; width:230px; max-width:calc(100vw - 24px); padding:14px; border:1px solid #ffffff25; border-radius:14px; color:#e6eaf8; background:#202638; box-shadow:0 14px 45px #03051088; font:12px var(--control-font,'Space Grotesk',sans-serif); }
+.slider-number-editor label { display:grid; gap:10px; }
+.slider-number-editor input { width:100%; box-sizing:border-box; padding:10px; border:1px solid #ffffff30; border-radius:9px; background:#151b29; color:inherit; font:inherit; }
+.slider-number-editor small { display:block; margin-top:6px; color:#e8b6bf; }
+.slider-number-editor>div { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+.slider-number-editor button { padding:8px 12px; border:1px solid #ffffff20; border-radius:9px; color:inherit; background:#30384e; font:inherit; cursor:pointer; }

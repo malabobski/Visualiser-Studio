@@ -1,7 +1,5 @@
 name: Mac preview installers
 on:
-  push:
-    branches: [codex/mac-test-build]
   workflow_dispatch:
 permissions:
   contents: read

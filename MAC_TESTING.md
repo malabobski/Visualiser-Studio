@@ -1,4 +1,4 @@
-# Visualiser Studio — Mac preview 1.2.9-mac.2
+# Visualiser Studio — Mac preview 1.2.9-mac.3
 
 Thanks for testing the Mac version! This preview targets macOS 14.2 or newer.
 
@@ -62,6 +62,9 @@ https://support.apple.com/en-gb/102445
 
 ## Changes in this preview
 
+- Sliders scroll smoothly, support fine adjustment with Control/Command, reset on double-click, and accept typed values through their number readouts.
+- Settings search and remembered export folders/filename preferences are available.
+- Interface size now lives under Appearance. Particle movement is slower, and the secret moon stays until clicked.
 - Settings → Interface size adds saved 75–150% zoom. Try 100% and 125% plus your normal macOS display setting.
 - Narrow/short windows keep controls accessible; MIDI import and action buttons keep their intended sizing.
 - Mouse-wheel and two-finger scrolling work on sliders, including MIDI/customise/settings sliders.

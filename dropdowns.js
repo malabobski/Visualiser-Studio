@@ -45,7 +45,9 @@
     menu.style.top=`${r.bottom+menu.offsetHeight+8<=window.innerHeight?r.bottom+6:Math.max(8,r.top-menu.offsetHeight-6)}px`;
     (menu.querySelector('[aria-selected="true"]:not(:disabled)')||menu.querySelector('button:not(:disabled)'))?.focus({preventScroll:true});
   }
-  document.querySelectorAll('select:not([multiple])').forEach((select,index)=>{
+  function attach(select){
+    if(select.closest('.unified-select'))return;
+    const index=controls.length;
     const wrapper=document.createElement('span');wrapper.className='unified-select';
     select.before(wrapper);wrapper.append(select);select.classList.add('unified-native');
     const button=document.createElement('button');button.type='button';button.className='unified-toggle';
@@ -63,7 +65,10 @@
     });
     select.addEventListener('change',()=>sync(control));
     new MutationObserver(()=>sync(control)).observe(select,{childList:true,subtree:true,attributes:true});sync(control);
-  });
+  }
+  document.querySelectorAll('select:not([multiple])').forEach(attach);
+  const scan=root=>{if(root.nodeType!==Node.ELEMENT_NODE)return;if(root.matches('select:not([multiple])'))attach(root);root.querySelectorAll('select:not([multiple])').forEach(attach);};
+  new MutationObserver(changes=>{for(const change of changes)for(const node of change.addedNodes)scan(node);}).observe(document.body,{childList:true,subtree:true});
   // Existing settings also assign .value directly when restoring templates.
   setInterval(()=>controls.forEach(sync),200);
   document.addEventListener('pointerdown',e=>{if(active&&!active.menu.contains(e.target)&&!active.button.contains(e.target))close();},true);

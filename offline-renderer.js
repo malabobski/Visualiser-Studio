@@ -19,7 +19,7 @@ const DEFAULT_PARAMS = {
   mirror: [.7, 96, .72],
   radial: [.16, .31, 3],
   wave: [.35, 4, 2],
-  particles: [180, 1, 1],
+  particles: [180, .2, 1],
   aurora: [.5, 1, .8],
   orbit: [.2, 110, 1],
   rings: [.047, 4, .04],
@@ -122,7 +122,7 @@ async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'f
         ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.stroke();
       }
     } else if (style === 'particles') {
-      const density = Math.max(1, Math.round(p0)), speedScale = p1, sizeScale = p2;
+      const density = Math.max(1, Math.round(p0)), speedScale = Math.max(.05, Math.min(.6, p1)) * .03, sizeScale = p2;
       particles.slice(0, density).forEach((particle, i) => {
         const v = values[i % values.length], speed = (.25 + v * 4.7) * speedScale;
         particle.y -= particle.v * speed;

@@ -478,6 +478,7 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  require('./export-files').setupExportFiles({app,ipcMain,dialog,session:session.defaultSession,getWindow:()=>mainWindow,getOrigin:()=>`http://localhost:${mainAppPort}`});
   try{const saved=JSON.parse(await fsp.readFile(interfacePreferencesPath(),'utf8'));if(Number.isFinite(saved.zoom)&&saved.zoom>=75&&saved.zoom<=150&&saved.zoom%5===0)interfaceZoom=saved.zoom;}catch{}
   if(process.platform === 'darwin') {
     try { const saved=JSON.parse(await fsp.readFile(macPreferencesPath(),'utf8'));if(allowedApps.includes(saved.preferred))macMediaPreference=saved.preferred; } catch {}

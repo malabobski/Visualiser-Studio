@@ -79,7 +79,7 @@
     styleParameters[liveLook.style].forEach((p,i)=>{
       const label=document.createElement('label');label.className='live-param';label.textContent=p[0];
       const input=document.createElement('input'),output=document.createElement('output');
-      input.type='range';input.min=p[1];input.max=p[2];input.step=p[4];input.value=liveLook.params[i];input.setAttribute('aria-label',p[0]);output.value=input.value;
+      input.type='range';input.min=p[1];input.max=p[2];input.step=p[4];input.value=liveLook.params[i];input.dataset.default=p[3];input.setAttribute('aria-label',p[0]);output.value=input.value;
       input.oninput=()=>{liveLook.params[i]=Number(input.value);output.value=input.value;persist();};
       label.append(input,output);$('liveParameters').append(label);
     });

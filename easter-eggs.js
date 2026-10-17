@@ -32,7 +32,7 @@
     }catch{}
   }
   function surprise(message,fromDiamond=false){
-    if(diamond.classList.contains('egg-gold')&&!fromDiamond){
+    if((diamond.classList.contains('egg-gold')||diamond.textContent==='☾')&&!fromDiamond){
       if(message==='Secret handshake accepted.')particles('sparkle',12);
       return;
     }
@@ -49,7 +49,7 @@
     if(message==='Make a wish.')particles('constellation',28);
     if(message==='Rare diamond discovered!'){diamond.classList.add('egg-gold');chime();}
     if(message==='Secret handshake accepted.')particles('sparkle',12);
-    if(message!=='Rare diamond discovered!')resetTimer=setTimeout(()=>{diamond.textContent='◈';diamond.classList.remove('egg-disco','egg-boop');},3500);
+    if(message!=='Rare diamond discovered!'&&message!=='Shh… secret mode.')resetTimer=setTimeout(()=>{diamond.textContent='◈';diamond.classList.remove('egg-disco','egg-boop');},3500);
   }
   window.addEventListener('diamond-surprise',e=>surprise(e.detail,true));
   let typedTarget=null;

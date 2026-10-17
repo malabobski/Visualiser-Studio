@@ -1,4 +1,10 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
+contextBridge.exposeInMainWorld('exportFiles', {
+  get:()=>ipcRenderer.invoke('exports:get'),
+  chooseFolder:()=>ipcRenderer.invoke('exports:folder'),
+  naming:options=>ipcRenderer.invoke('exports:naming',options),
+  prepare:request=>ipcRenderer.invoke('exports:prepare',request)
+});
 contextBridge.exposeInMainWorld('interfaceScale', {
   get:()=>ipcRenderer.invoke('interface:zoom-get'),
   set:value=>ipcRenderer.invoke('interface:zoom-set',value)
