@@ -18,7 +18,11 @@ let macNowPlaying;
 const isMacPreview = process.platform === 'darwin' && require('./package.json').visualiserMacPreview === true;
 // Test installers have their own preferences/projects and cannot enter the
 // production update feed while signing and native integration are being tested.
-if (isMacPreview) app.setPath('userData', path.join(app.getPath('appData'), 'Visualiser Studio Mac Preview'));
+if (isMacPreview) {
+  const previewData = path.join(app.getPath('appData'), 'Visualiser Studio Mac Preview');
+  require('node:fs').mkdirSync(previewData, { recursive:true });
+  app.setPath('userData', previewData);
+}
 let desktopSourceAppId = '';
 
 const RPC = require('discord-rpc');
@@ -26,7 +30,6 @@ const RPC = require('discord-rpc');
 const APP_TITLE = 'Visualiser Studio';
 const ICON_PATH = path.join(__dirname, 'build', 'icon.png');
 let exitConfirmed=false;
-let quitRequested=false;
 function requestExitConfirmation(){
   if(!mainWindow||mainWindow.isDestroyed())return;
   if(mainWindow.isMinimized())mainWindow.restore();
@@ -430,7 +433,7 @@ async function createWindow() {
   mainWindow.on('close',event=>{
     if(!exitConfirmed){
       event.preventDefault();
-      if(process.platform === 'darwin' && !quitRequested) mainWindow.hide();
+      if(process.platform === 'darwin') mainWindow.hide();
       else requestExitConfirmation();
     }
   });
@@ -450,7 +453,6 @@ app.whenReady().then(async () => {
 });
 
 app.on('before-quit', event => {
-  quitRequested=true;
   if(!exitConfirmed&&mainWindow&&!mainWindow.isDestroyed()){
     event.preventDefault();requestExitConfirmation();return;
   }

@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawn } = require('node:child_process');
 
 (async () => {
   assert.equal(process.platform, 'darwin', 'Verify the app on macOS');
@@ -34,5 +34,31 @@ const { execFileSync } = require('node:child_process');
   const canvas = path.join(asarPath, 'node_modules/@napi-rs/canvas');
   const code = `const {createCanvas}=require(${JSON.stringify(canvas)});const canvas=createCanvas(64,64);canvas.getContext('2d').fillRect(0,0,64,64);if(canvas.toBuffer('image/png').length<50)throw Error('Canvas failed');console.log('Packaged native canvas passed')`;
   execFileSync(executable, ['-e', code], { env:{...process.env, ELECTRON_RUN_AS_NODE:'1'}, stdio:'inherit', timeout:30000 });
+  // Also start the real app: run-as-Node cannot catch startup, IPC registration
+  // or native-window initialization failures in main.js.
+  const environment = { ...process.env }; delete environment.ELECTRON_RUN_AS_NODE;
+  const child = spawn(executable, [], { env:environment, stdio:['ignore','pipe','pipe'] });
+  let output = '', failure, closed = false;
+  child.stdout.on('data', data => { output += data; });
+  child.stderr.on('data', data => { output += data; });
+  child.on('error', error => { failure = error; });
+  child.on('exit', () => { closed = true; });
+  try {
+    let started = false;
+    for (let attempt=0; attempt<40; attempt++) {
+      if (failure) throw failure;
+      if (closed) throw Error('Mac app exited during startup: ' + output);
+      try {
+        const response = await fetch('http://localhost:3000', { signal:AbortSignal.timeout(1000) });
+        if (response.ok && (await response.text()).includes('mac-platform.js')) { started=true; break; }
+      } catch {}
+      await new Promise(resolve => setTimeout(resolve,500));
+    }
+    assert(started, 'Mac app did not start its editor: ' + output);
+    await new Promise(resolve => setTimeout(resolve,2500));
+    assert(!closed, 'Mac app closed after startup: ' + output);
+    assert(!/Uncaught Exception|Error occurred in handler|Cannot find module|JavaScript error occurred/i.test(output), output);
+    console.log('Packaged Mac app startup passed');
+  } finally { child.kill('SIGKILL'); }
   console.log('Mac archive, signature, permissions, FFmpeg and native canvas verified for ' + process.arch);
 })().catch(error => { console.error(error); process.exitCode = 1; });
