@@ -1,0 +1,80 @@
+// JavaScript for Automation, executed by macOS osascript, not by Node.
+// No UI scripting or Accessibility permission is used.
+var supportedApps = ['com.spotify.client', 'com.apple.Music'];
+function fail(error) {
+  var denied = /1743|not authorized|not permitted/i.test(String(error));
+  return { ok: false, reason: denied
+    ? 'Allow Visualiser Studio in System Settings → Privacy & Security → Automation.'
+    : 'This media action is unavailable. Check the player and your Automation permissions.' };
+}
+function safe(read, fallback) { try { return read(); } catch (_) { return fallback; } }
+function current(app, id) {
+  var state = String(app.playerState());
+  if (state !== 'playing' && state !== 'paused') return null;
+  var track = app.currentTrack();
+  var spotify = id === 'com.spotify.client';
+  var duration = Number(track.duration()) / (spotify ? 1000 : 1);
+  var title = String(track.name() || '');
+  if (!title) return null;
+  return { title: title, artist: String(safe(function () { return track.artist(); }, '')),
+    albumTitle: String(safe(function () { return track.album(); }, '')),
+    sourceAppId: id, sourceName: spotify ? 'Spotify' : 'Apple Music',
+    playbackStatus: state === 'playing' ? 'Playing' : 'Paused',
+    position: Math.max(0, Number(app.playerPosition()) || 0), start: 0,
+    end: isFinite(duration) ? Math.max(0, duration) : 0,
+    canSeek: isFinite(duration) && duration > 0, canToggle: true, canPrevious: true, canNext: true,
+    artworkUrl: spotify ? String(safe(function () { return track.artworkUrl(); }, '')) : '',
+    trackId: String(safe(function () { return spotify ? track.id() : track.persistentID(); }, title)) };
+}
+function run(argv) {
+  try {
+    var operation = argv[0], args = JSON.parse(argv[1] || '{}');
+    if (operation === 'system-volume') {
+      var system = Application.currentApplication(); system.includeStandardAdditions = true;
+      if (args.value !== undefined) {
+        if (typeof args.value !== 'number' || !isFinite(args.value) || args.value < 0 || args.value > 100) throw Error('Invalid volume');
+        system.setVolume(null, { outputVolume: Math.round(args.value), outputMuted: false });
+      }
+      var volume = system.getVolumeSettings();
+      return JSON.stringify({ ok: true, available: true, value: Number(volume.outputVolume), muted: !!volume.outputMuted });
+    }
+    if (operation === 'poll') {
+      var candidates = [], problem = '';
+      supportedApps.forEach(function (id) {
+        if (args.preferred && args.preferred !== 'auto' && args.preferred !== id) return;
+        var running = false;
+        try {
+          var app = Application(id);
+          if (!app.running()) return;
+          running = true;
+          var media = current(app, id);
+          if (media) candidates.push(media);
+        } catch (error) { if (running) problem = fail(error).reason; }
+      });
+      candidates.sort(function (a, b) {
+        var playing = (b.playbackStatus === 'Playing' ? 1 : 0) - (a.playbackStatus === 'Playing' ? 1 : 0);
+        return playing || (b.sourceAppId === args.previous ? 1 : 0) - (a.sourceAppId === args.previous ? 1 : 0);
+      });
+      return JSON.stringify({ ok: true, media: candidates[0] || null, reason: problem });
+    }
+    if (supportedApps.indexOf(args.sourceAppId) < 0) throw Error('Unsupported media app');
+    var player = Application(args.sourceAppId);
+    if (!player.running()) return JSON.stringify({ ok: false, reason: 'Open the media app first.' });
+    if (operation === 'control') {
+      if (args.action === 'toggle') player.playpause();
+      else if (args.action === 'next') player.nextTrack();
+      else if (args.action === 'previous') player.previousTrack();
+      else if (args.action === 'seek' && typeof args.position === 'number' && isFinite(args.position) && args.position >= 0) player.playerPosition = args.position;
+      else throw Error('Invalid media action');
+      return JSON.stringify({ ok: true });
+    }
+    if (operation === 'app-volume') {
+      if (args.value !== undefined) {
+        if (typeof args.value !== 'number' || !isFinite(args.value) || args.value < 0 || args.value > 100) throw Error('Invalid volume');
+        player.soundVolume = Math.round(args.value);
+      }
+      return JSON.stringify({ ok: true, available: true, value: Number(player.soundVolume()) });
+    }
+    throw Error('Unknown operation');
+  } catch (error) { return JSON.stringify(fail(error)); }
+}

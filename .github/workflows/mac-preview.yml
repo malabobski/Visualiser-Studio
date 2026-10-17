@@ -1,0 +1,51 @@
+name: Mac preview installers
+on:
+  push:
+    branches: [codex/mac-test-build]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Mac ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install native Mac dependencies
+        run: npm ci
+      - name: Run tests
+        run: node --test tests/*.test.js
+      - name: Check Mac scripting syntax
+        run: |
+          osacompile -l JavaScript -o "$RUNNER_TEMP/mac-media.scpt" mac-media.jxa
+          osacompile -o "$RUNNER_TEMP/mac-music-art.scpt" mac-music-art.applescript
+      - name: Build preview without publishing
+        run: npm run dist:mac:preview
+      - name: Check packaged app and native dependencies
+        run: node build/verify-mac.cjs
+      - name: Collect testing notes
+        run: cp MAC_TESTING.md dist/mac-preview/MAC_TESTING.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Visualiser-Studio-Mac-Preview-${{ matrix.arch }}
+          path: |
+            dist/mac-preview/*.dmg
+            dist/mac-preview/*.zip
+            dist/mac-preview/MAC_TESTING.md
+          if-no-files-found: error
+          retention-days: 30

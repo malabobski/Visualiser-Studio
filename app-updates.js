@@ -2,12 +2,12 @@ const { EventEmitter } = require('events');
 
 // Updater state is owned by the main process. Ordinary exits never install updates.
 class UpdateService extends EventEmitter {
-  constructor({ updater, version, enabled, savePreference = async () => {}, onInstall = () => {}, onInstallError = () => {}, inspectLatestVersion }) {
+  constructor({ updater, version, enabled, savePreference = async () => {}, onInstall = () => {}, onInstallError = () => {}, inspectLatestVersion, disabledMessage }) {
     super();
     this.updater = updater; this.enabled = enabled; this.savePreference = savePreference;
     this.inspectLatestVersion = inspectLatestVersion;
     this.onInstall = onInstall; this.onInstallError = onInstallError;
-    this.state = { status: enabled ? 'idle' : 'development', currentVersion: version, version: '', progress: 0, automatic: true, lastChecked: null, message: enabled ? 'Updates will be checked quietly in the background.' : 'Automatic updates are available in the installed app.' };
+    this.state = { status: enabled ? 'idle' : 'development', currentVersion: version, version: '', progress: 0, automatic: true, lastChecked: null, message: enabled ? 'Updates will be checked quietly in the background.' : disabledMessage || 'Automatic updates are available in the installed app.' };
     this.handlers = [];
     updater.autoDownload = true;
     updater.autoInstallOnAppQuit = false;

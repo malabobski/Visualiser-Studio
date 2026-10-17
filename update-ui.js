@@ -21,7 +21,7 @@
   const blockReason=()=>restartBlockReason({exporting,recording:window.getLiveRecordingActivity?.().state,saving:window.Projects?.isBusy()});
   function render(next){
     if(next)state=next;
-    $('automaticUpdates').checked=state.automatic!==false;$('automaticUpdates').disabled=!bridge;
+    $('automaticUpdates').checked=state.automatic!==false;$('automaticUpdates').disabled=!bridge||state.status==='development';
     $('updateInstalledVersion').textContent=state.currentVersion?'Installed · v'+state.currentVersion:'';
     if(state.currentVersion)$('settingsVersion').textContent='Visualiser Studio · v'+state.currentVersion;
     $('updateStatus').textContent=state.status==='downloading'?'Downloading v'+state.version+' · '+Math.round(state.progress)+'%':state.message||'';

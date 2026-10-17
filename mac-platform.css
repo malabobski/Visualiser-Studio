@@ -1,0 +1,7 @@
+html.mac-platform #windowButtons { display:none !important; }
+html.mac-platform .window-bar { padding-left:90px; }
+.mac-platform-settings .mac-permission-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.mac-platform-settings .mac-permission-actions button { padding:9px 12px; }
+.mac-platform-settings p { color:var(--muted, #a7b0c8); font-size:12px; line-height:1.6; }
+.mac-platform-settings select { width:100%; }
+.mac-platform-settings .mac-status { margin-top:12px; }

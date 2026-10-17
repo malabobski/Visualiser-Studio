@@ -1,4 +1,10 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
+contextBridge.exposeInMainWorld('desktopPlatform', {
+  os: process.platform,
+  macStatus: () => ipcRenderer.invoke('mac:status'),
+  openMacSettings: section => ipcRenderer.invoke('mac:settings', section),
+  chooseMacPlayer: preferred => ipcRenderer.invoke('mac:player', preferred)
+});
 
 // Expose a safe function `window.discord.setStatus()` to your webpage
 contextBridge.exposeInMainWorld('discord', {

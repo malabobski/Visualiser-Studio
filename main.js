@@ -3,14 +3,22 @@ require('./project-files');
 // It figures out where the bundled FFmpeg lives, starts the same local server
 // your app already used, and opens a window pointed at it.
 
-const { app, BrowserWindow, screen, session, desktopCapturer, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, screen, session, desktopCapturer, ipcMain, dialog, Menu, shell, systemPreferences } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fsp = require('fs/promises');
 const { UpdateService } = require('./app-updates');
 const { autoUpdater } = require('electron-updater');
 const { MediaVolume } = require('./media-volume');
-const mediaVolume = new MediaVolume();
+const { MacAutomation } = require('./mac-automation');
+const { MacNowPlaying, allowedApps } = require('./mac-now-playing');
+const macAutomation = process.platform === 'darwin' ? new MacAutomation() : null;
+const mediaVolume = new MediaVolume({ automation: macAutomation });
+let macNowPlaying;
+const isMacPreview = process.platform === 'darwin' && require('./package.json').visualiserMacPreview === true;
+// Test installers have their own preferences/projects and cannot enter the
+// production update feed while signing and native integration are being tested.
+if (isMacPreview) app.setPath('userData', path.join(app.getPath('appData'), 'Visualiser Studio Mac Preview'));
 let desktopSourceAppId = '';
 
 const RPC = require('discord-rpc');
@@ -18,6 +26,7 @@ const RPC = require('discord-rpc');
 const APP_TITLE = 'Visualiser Studio';
 const ICON_PATH = path.join(__dirname, 'build', 'icon.png');
 let exitConfirmed=false;
+let quitRequested=false;
 function requestExitConfirmation(){
   if(!mainWindow||mainWindow.isDestroyed())return;
   if(mainWindow.isMinimized())mainWindow.restore();
@@ -124,12 +133,13 @@ let mainWindow, miniWindow;
 const updatePreferencesPath = () => path.join(app.getPath('userData'),'update-preferences.json');
 const updates = new UpdateService({
   updater:autoUpdater,version:app.getVersion(),
-  inspectLatestVersion:async()=>{
+  inspectLatestVersion:isMacPreview ? undefined : async()=>{
     const response=await fetch('https://api.github.com/repos/malabobski/Visualiser-Studio-Releases/releases/latest',{headers:{Accept:'application/vnd.github+json','User-Agent':'Visualiser-Studio'},signal:AbortSignal.timeout(15000)});
     if(!response.ok)throw Error('Release check failed');
     return (await response.json()).tag_name;
   },
-  enabled:app.isPackaged && (['win32','darwin'].includes(process.platform) || !!process.env.APPIMAGE),
+  enabled:!isMacPreview && app.isPackaged && (['win32','darwin'].includes(process.platform) || !!process.env.APPIMAGE),
+  disabledMessage:isMacPreview ? 'Mac preview · Updates are disabled for this test build. Install newer test builds manually.' : undefined,
   savePreference:async automatic=>{const file=updatePreferencesPath();await fsp.mkdir(path.dirname(file),{recursive:true});await fsp.writeFile(file,JSON.stringify({automatic}));},
   onInstall:()=>{exitConfirmed=true;},onInstallError:()=>{exitConfirmed=false;}
 });
@@ -142,6 +152,30 @@ ipcMain.handle('updates:install',event=>isUpdateWindow(event)?updates.install():
 app.on('will-quit',()=>updates.dispose());
 
 const isVolumeWindow = event => event.sender === mainWindow?.webContents || event.sender === miniWindow?.webContents;
+let macMediaPreference = 'auto';
+const macPreferencesPath = () => path.join(app.getPath('userData'), 'mac-media-preferences.json');
+ipcMain.handle('mac:status', event => {
+  if (process.platform !== 'darwin' || !isVolumeWindow(event)) return null;
+  return { screen: systemPreferences.getMediaAccessStatus('screen'), preferred: macMediaPreference,
+    mediaMessage: macNowPlaying?.reason || '', preview: isMacPreview,
+    version: app.getVersion(), architecture: process.arch };
+});
+ipcMain.handle('mac:settings', (event, section) => {
+  if (process.platform !== 'darwin' || !isVolumeWindow(event)) return false;
+  const pages = { screen: 'Privacy_ScreenCapture', automation: 'Privacy_Automation', audio: 'Privacy_AudioCapture' };
+  if (!Object.hasOwn(pages, section)) return false;
+  return shell.openExternal('x-apple.systempreferences:com.apple.preference.security?' + pages[section]).then(() => true).catch(() => false);
+});
+ipcMain.handle('mac:player', async (event, preferred) => {
+  if (process.platform !== 'darwin' || !isVolumeWindow(event) || !allowedApps.includes(preferred)) return false;
+  const file = macPreferencesPath();
+  await fsp.mkdir(path.dirname(file), { recursive: true });
+  await fsp.writeFile(file, JSON.stringify({ preferred }));
+  macMediaPreference = preferred;
+  macNowPlaying?.setPreferred(preferred);
+  macNowPlaying?.poll();
+  return true;
+});
 ipcMain.handle('media-volume:get', async (event, target) => {
   if (!isVolumeWindow(event)) return { available: false, reason: 'Volume control unavailable.' };
   const sourceAppId = desktopSourceAppId;
@@ -156,9 +190,15 @@ ipcMain.handle('media-volume:set', async (event, request) => {
   const result = await mediaVolume.request(request.target, sourceAppId, request.value);
   return { ...result, target: request.target, sourceAppId };
 });
-app.on('will-quit', () => mediaVolume.stop());
+app.on('will-quit', () => {
+  mediaVolume.stop();
+  macNowPlaying?.stop();
+  macAutomation?.stop();
+  if (nowPlayingProcess) nowPlayingProcess.kill();
+});
 
 let mainAppPort;
+let serverStartPromise;
 let miniOpacity=1;
 
 // --- Live section: system audio loopback -----------------------------------
@@ -166,8 +206,8 @@ let miniOpacity=1;
 // dialog. Providing our own handler skips that dialog entirely and lets us
 // hand back a fixed video source (any one screen — the renderer never shows
 // the video, it only wants the accompanying loopback audio track) plus
-// audio:'loopback', which on Windows captures whatever's currently playing
-// system-wide.
+// audio:'loopback' for system-wide audio. Modern macOS uses Chromium's
+// CoreAudio Tap path and the usage description in the packaged Info.plist.
 function setupSystemAudioLoopback() {
   session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
     desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
@@ -187,17 +227,24 @@ function setupSystemAudioLoopback() {
 // second, printing one line of JSON to stdout per change; if spawning it
 // fails for any reason, Now Playing just stays empty rather than crashing.
 let nowPlayingProcess = null;
-function setupNowPlaying(win) {
+let lastNowPlayingPayload = null;
+ipcMain.handle('now-playing:get', () => lastNowPlayingPayload);
+// Keep the bridge callable until a native media provider is available.
+if (process.platform !== 'win32') ipcMain.handle('now-playing:control', (event, action, position) => isVolumeWindow(event) ? macNowPlaying?.control(action, position) ?? false : false);
+function sendNowPlaying(payload) {
+  lastNowPlayingPayload = payload;
+  desktopSourceAppId = payload?.sourceAppId || '';
+  for (const win of [mainWindow, miniWindow]) if (win && !win.isDestroyed()) win.webContents.send('now-playing:update', payload);
+}
+function setupNowPlaying() {
+  if (process.platform === 'darwin') {
+    macNowPlaying = new MacNowPlaying({ automation: macAutomation, onChange: sendNowPlaying });
+    macNowPlaying.start(macMediaPreference);
+    return;
+  }
   if (process.platform !== 'win32') return;
 
-  let lastPayload = null;
-  const send = (payload) => {
-    lastPayload = payload;
-    desktopSourceAppId = payload?.sourceAppId || '';
-    if (win && !win.isDestroyed()) win.webContents.send('now-playing:update', payload);
-    if (miniWindow && !miniWindow.isDestroyed()) miniWindow.webContents.send('now-playing:update', payload);
-  };
-  ipcMain.handle('now-playing:get', () => lastPayload);
+  const send = sendNowPlaying;
 
   // Same reasoning as resolveFfmpegPath() above: when packaged, __dirname
   // points inside the compressed app.asar, and powershell.exe (an external
@@ -208,7 +255,8 @@ function setupNowPlaying(win) {
   if (scriptPath.includes('app.asar')) {
     scriptPath = scriptPath.replace('app.asar', 'app.asar.unpacked');
   }
-  ipcMain.handle('now-playing:control', async (_event, action, position) => {
+  ipcMain.handle('now-playing:control', async (event, action, position) => {
+    if (!isVolumeWindow(event)) return false;
     if (!['toggle', 'previous', 'next', 'seek'].includes(action)) return false;
     if (action === 'seek' && (!Number.isFinite(position) || position < 0)) return false;
     return new Promise(resolve => {
@@ -328,7 +376,8 @@ async function createWindow() {
   const { startServer } = require('./server.js');
 
   // Start the same server.js logic as before, but tell it which ffmpeg to use.
-  const { port: activePort } = await startServer({ port: PORT, ffmpegBin: resolveFfmpegPath() });
+  serverStartPromise ||= startServer({ port: PORT, ffmpegBin: resolveFfmpegPath() });
+  const { port: activePort } = await serverStartPromise;
 
   mainAppPort=activePort;
   mainWindow = new BrowserWindow({
@@ -340,7 +389,8 @@ async function createWindow() {
     minHeight: 640,
     backgroundColor: '#10121b',
     autoHideMenuBar: true,
-    frame: false,
+    frame: process.platform === 'darwin',
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 14, y: 11 } } : {}),
     show: false,
     webPreferences: {
       contextIsolation: true,
@@ -378,21 +428,29 @@ async function createWindow() {
     mainWindow = null;
   });
   mainWindow.on('close',event=>{
-    if(!exitConfirmed){event.preventDefault();requestExitConfirmation();}
+    if(!exitConfirmed){
+      event.preventDefault();
+      if(process.platform === 'darwin' && !quitRequested) mainWindow.hide();
+      else requestExitConfirmation();
+    }
   });
-
-  setupSystemAudioLoopback();
-  setupNowPlaying(mainWindow);
 }
 
 app.whenReady().then(async () => {
+  if(process.platform === 'darwin') {
+    try { const saved=JSON.parse(await fsp.readFile(macPreferencesPath(),'utf8'));if(allowedApps.includes(saved.preferred))macMediaPreference=saved.preferred; } catch {}
+    require('./mac-menu').installMacMenu({ Menu, app, showMain: restoreFullApp, requestExit: () => app.quit() });
+  }
   setupDiscordRPC();
   let automatic=true;try{automatic=JSON.parse(await fsp.readFile(updatePreferencesPath(),'utf8')).automatic!==false;}catch{}
   updates.start(automatic);
+  setupSystemAudioLoopback();
+  setupNowPlaying();
   createWindow();
 });
 
 app.on('before-quit', event => {
+  quitRequested=true;
   if(!exitConfirmed&&mainWindow&&!mainWindow.isDestroyed()){
     event.preventDefault();requestExitConfirmation();return;
   }
@@ -400,7 +458,6 @@ app.on('before-quit', event => {
 });
 
 app.on('window-all-closed', () => {
-  if (nowPlayingProcess) nowPlayingProcess.kill();
   // On Windows/Linux, quit fully when the window closes.
   // On Mac, apps conventionally stay open until Cmd+Q.
   if (process.platform !== 'darwin') app.quit();
@@ -414,5 +471,6 @@ app.on('second-instance', () => {
 });
 
 app.on('activate', () => {
-  if (mainWindow === null) createWindow();
+  if (mainWindow == null) createWindow();
+  else restoreFullApp();
 });

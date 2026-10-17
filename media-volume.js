@@ -3,18 +3,20 @@ const { spawn } = require('child_process');
 
 // One hidden helper handles slider updates, avoiding a PowerShell launch per tick.
 class MediaVolume {
-  constructor({ platform = process.platform, spawnProcess = spawn, timeout = 10000 } = {}) {
+  constructor({ platform = process.platform, spawnProcess = spawn, timeout = 10000, automation } = {}) {
     this.platform = platform;
     this.spawnProcess = spawnProcess;
     this.timeout = timeout;
     this.pending = new Map();
     this.serial = 0;
+    this.automation = automation;
   }
   unavailable(reason = 'Volume control is unavailable.') { return { available: false, reason }; }
   request(target, sourceAppId = '', value) {
     if (!['system', 'app'].includes(target)) return Promise.resolve(this.unavailable('Choose a volume target.'));
     if (value !== undefined && (!Number.isFinite(value) || value < 0 || value > 100)) return Promise.resolve(this.unavailable('Invalid volume.'));
-    if (this.platform !== 'win32') return Promise.resolve(this.unavailable('Volume control is available on Windows.'));
+    if (this.platform === 'darwin') return this.requestMac(target, sourceAppId, value);
+    if (this.platform !== 'win32') return Promise.resolve(this.unavailable('Volume control is unavailable on this system.'));
     if (target === 'app' && !sourceAppId) return Promise.resolve(this.unavailable('Play something in a media app first.'));
     if (!this.child) this.start();
     const child = this.child;
@@ -27,6 +29,17 @@ class MediaVolume {
       if (value !== undefined) command.value = value;
       child.stdin.write(JSON.stringify(command) + '\n', error => { if (error) this.stop(child); });
     });
+  }
+  async requestMac(target, sourceAppId, value) {
+    if (!this.automation) return this.unavailable('Mac volume controls are unavailable.');
+    if (target === 'app' && !['com.spotify.client', 'com.apple.Music'].includes(sourceAppId)) {
+      return this.unavailable('App volume on Mac currently supports Spotify and Apple Music. Choose System volume for other apps.');
+    }
+    try {
+      const result = await this.automation.run(target === 'system' ? 'system-volume' : 'app-volume', { sourceAppId, value });
+      if (result.ok && result.available && Number.isFinite(result.value)) return { available: true, value: Math.max(0, Math.min(100, result.value)), muted: !!result.muted };
+      return this.unavailable(result.reason || 'This audio output does not support volume control.');
+    } catch { return this.unavailable('Could not read the Mac volume.'); }
   }
   start() {
     let script = path.join(__dirname, 'media-volume.ps1').replace('app.asar', 'app.asar.unpacked');

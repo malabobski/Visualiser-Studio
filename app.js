@@ -105,7 +105,9 @@ async function startLiveAudio() {
     audioTracks[0].addEventListener('ended', stopLiveAudio);
   } catch (err) {
     stopLiveAudio();
-    statusEl.textContent = `Couldn't start system audio capture: ${err.message}`;
+    statusEl.textContent = window.desktopPlatform?.os === 'darwin'
+      ? `Couldn't start system audio capture: ${err.message} Check system audio and screen recording access in Settings → Mac permissions & media.`
+      : `Couldn't start system audio capture: ${err.message}`;
   } finally { $('liveAudioStart').disabled = false; }
 }
 function stopLiveAudio() {

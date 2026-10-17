@@ -13,7 +13,10 @@
     "dist:publish": "electron-builder --win --publish always",
     "test:updates": "node --test tests/updates.test.js",
     "dist:publish:bridge": "electron-builder --win --publish always --config build/bridge-release.cjs",
-    "test:achievements": "node --test tests/achievements.test.js"
+    "test:achievements": "node --test tests/achievements.test.js",
+    "dist:mac": "node build/mac-build.cjs",
+    "test:mac": "node --test tests/mac-port.test.js",
+    "dist:mac:preview": "node build/mac-build.cjs --preview"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.2",
@@ -41,12 +44,20 @@
       "!build/create-installer-art.cjs",
       "!build/installer.nsh",
       "!build/installer*.bmp",
-      "!build/bridge-release.cjs"
+      "!build/bridge-release.cjs",
+      "!MAC_PORT.md",
+      "!build/mac-build.cjs",
+      "!MAC_TESTING.md",
+      "!build/mac-preview.cjs",
+      "!build/verify-mac.cjs",
+      "!.github/**"
     ],
     "asarUnpack": [
       "node_modules/ffmpeg-static/**",
       "now-playing.ps1",
-      "media-volume.ps1"
+      "media-volume.ps1",
+      "mac-media.jxa",
+      "mac-music-art.applescript"
     ],
     "win": {
       "target": "nsis",
@@ -56,7 +67,15 @@
       "target": [
         "dmg",
         "zip"
-      ]
+      ],
+      "category": "public.app-category.music",
+      "minimumSystemVersion": "14.2",
+      "artifactName": "Visualiser-Studio-${version}-mac-${arch}.${ext}",
+      "extendInfo": {
+        "NSAudioCaptureUsageDescription": "Visualiser Studio uses system audio to animate live music visualisers.",
+        "NSAppleEventsUsageDescription": "Visualiser Studio reads track details and controls playback and volume in Spotify and Apple Music."
+      },
+      "entitlements": "build/entitlements.mac.plist"
     },
     "linux": {
       "target": "AppImage"
