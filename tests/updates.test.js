@@ -76,3 +76,7 @@ test('bridge release publishes to both repositories while embedding the new publ
   assert(!source.includes('https://api.github.com/repos/malabobski/Visualiser-Studio/releases/latest'));
   assert.equal(require('../package.json').build.publish.length,1,'Normal future releases must only use the new repository');
 });
+
+test('Manual Mac releases never download or install an updater payload',async()=>{
+  const {service,updater}=fixture({enabled:false,version:'1.2.9',disabledMessage:'Mac updates are manual.',inspectLatestVersion:async()=> 'v1.3.0'});service.start();const state=await service.check();assert.match(state.message,/Mac updates are manual/);assert.equal(updater.checks,0);assert.equal(service.install().ok,false);assert.equal(updater.installs,0);service.dispose();
+});

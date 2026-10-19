@@ -16,6 +16,7 @@ const macAutomation = process.platform === 'darwin' ? new MacAutomation() : null
 const mediaVolume = new MediaVolume({ automation: macAutomation });
 let macNowPlaying;
 const isMacPreview = process.platform === 'darwin' && require('./package.json').visualiserMacPreview === true;
+const isManualMacRelease = process.platform === 'darwin' && require('./package.json').visualiserManualMacUpdates === true;
 // Test installers have their own preferences/projects and cannot enter the
 // production update feed while signing and native integration are being tested.
 if (isMacPreview) {
@@ -160,8 +161,8 @@ const updates = new UpdateService({
     if(!response.ok)throw Error('Release check failed');
     return (await response.json()).tag_name;
   },
-  enabled:!isMacPreview && app.isPackaged && (['win32','darwin'].includes(process.platform) || !!process.env.APPIMAGE),
-  disabledMessage:isMacPreview ? 'Mac preview · Updates are disabled for this test build. Install newer test builds manually.' : undefined,
+  enabled:!isMacPreview && !isManualMacRelease && app.isPackaged && (['win32','darwin'].includes(process.platform) || !!process.env.APPIMAGE),
+  disabledMessage:isManualMacRelease ? 'Mac 1.2.9 uses manual updates. Download future Mac installers from the Visualiser Studio release page.' : isMacPreview ? 'Mac preview · Updates are disabled for this test build. Install newer test builds manually.' : undefined,
   savePreference:async automatic=>{const file=updatePreferencesPath();await fsp.mkdir(path.dirname(file),{recursive:true});await fsp.writeFile(file,JSON.stringify({automatic}));},
   onInstall:()=>{exitConfirmed=true;},onInstallError:()=>{exitConfirmed=false;}
 });

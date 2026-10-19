@@ -8,7 +8,7 @@ if (process.platform !== 'darwin') {
   const builder = require.resolve('electron-builder/cli.js');
   const preview = process.argv.includes('--preview');
   const result = spawnSync(process.execPath, [builder, '--mac', '--' + process.arch, '--publish', 'never',
-    ...(preview ? ['--config', 'build/mac-preview.cjs'] : [])], {
+    ...(preview ? ['--config', 'build/mac-preview.cjs'] : process.argv.includes('--release') ? ['--config','build/mac-release.cjs'] : [])], {
     cwd: path.resolve(__dirname, '..'), stdio: 'inherit'
   });
   if (result.error) console.error(result.error.message);

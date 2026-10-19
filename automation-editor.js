@@ -14,16 +14,78 @@
     set(style,data){tracksByStyle[style]=ParameterAutomation.clean(data);persist();decorate();},
   };
   const screen=document.createElement('section');screen.id='automationScreen';screen.hidden=true;
-  screen.innerHTML=`<header class="automation-heading"><div><p class="eyebrow">CREATE · AUTOMATION</p><h1>Shape the song</h1><p>Give each parameter its own movement through time.</p></div><button id="automationClose" type="button">Back to Create ↗</button></header><div class="automation-workspace"><div class="automation-editor"><div class="automation-toolbar"><button id="automationPlay" type="button" aria-label="Play or pause">Play</button><button id="automationUndo" type="button" aria-label="Undo automation edit">Undo</button><button id="automationRedo" type="button" aria-label="Redo automation edit">Redo</button><button id="automationSnap" type="button" aria-pressed="true" data-hint="Snap nodes to the playhead when nearby. Hold Alt to bypass.">Snap to playhead</button><span id="automationTime">0:00 / 0:00</span><label>Zoom<input id="automationZoom" type="range" min="1" max="64" step=".25" value="1"></label></div><p class="automation-help" id="automationHelp" role="status">Click a lane to add a point · Drag to shape it · Right-click a point to remove it</p><div class="automation-scroll" id="automationScroll"><div id="automationTimeline"><div class="automation-ruler" id="automationRuler"></div><div class="automation-wave"><div class="automation-track-label"><strong>Audio</strong><small id="automationAudioName">Choose audio in Create</small></div><canvas id="automationWave" height="100" aria-label="Audio waveform. Click to seek."></canvas></div><div id="automationTracks"></div><div id="automationPlayhead"></div></div></div></div><aside class="automation-preview"><canvas id="automationPreview"></canvas><strong id="automationStyle"></strong><p>Your stage, live as you edit.</p><div class="automation-guide"><strong>A little guidance</strong><p>Ctrl+scroll to zoom. Scroll to pan left/right; Alt+scroll moves between tracks. The waveform is your reference. Each lane beneath it controls just one parameter.</p><p>Higher points mean higher values. Straight lines blend; Hold keeps each value until the next point.</p><p>Diamonds in Customise choose which lanes appear here. Switching one off keeps its points.</p></div></aside></div>`;
+  screen.innerHTML=`<header class="automation-heading"><div><p class="eyebrow">CREATE · AUTOMATION</p><h1>Shape the song</h1><p>Give each parameter its own movement through time.</p></div><button id="automationClose" type="button">Back to Create ↗</button></header><div class="automation-workspace"><div class="automation-editor"><div class="automation-toolbar"><button id="automationPlay" type="button" aria-label="Play or pause">Play</button><button id="automationUndo" type="button" aria-label="Undo automation edit">Undo</button><button id="automationRedo" type="button" aria-label="Redo automation edit">Redo</button><button id="automationSnap" type="button" aria-pressed="true" data-hint="Snap nodes to the playhead when nearby. Hold Alt to bypass.">Snap to playhead</button><span id="automationTime">0:00 / 0:00</span><label>Zoom<input id="automationZoom" type="range" min="1" max="64" step=".25" value="1"></label></div><p class="automation-help" id="automationHelp" role="status">Click to add · Drag nodes · Alt-drag a Blend line to curve · Right-click for node options</p><div class="automation-scroll" id="automationScroll"><div id="automationTimeline"><div class="automation-ruler" id="automationRuler"></div><div class="automation-wave"><div class="automation-track-label"><strong>Audio</strong><small id="automationAudioName">Choose audio in Create</small></div><canvas id="automationWave" height="100" aria-label="Audio waveform. Click to seek."></canvas></div><div id="automationTracks"></div><div id="automationPlayhead"></div></div></div></div><aside class="automation-preview"><canvas id="automationPreview"></canvas><strong id="automationStyle"></strong><p>Your stage, live as you edit.</p><div class="automation-guide"><strong>A little guidance</strong><p>Ctrl+scroll to zoom. Scroll to pan left/right; Alt+scroll moves between tracks. The waveform is your reference. Each lane beneath it controls just one parameter.</p><p>Higher points mean higher values. Blend moves smoothly between points; Hold keeps each value until the next point.</p><p>Diamonds in Customise choose which lanes appear here. Switching one off keeps its points.</p></div></aside></div>`;
   document.body.append(screen);
+  window.addEventListener('keydown',e=>{if(e.key==='Alt')screen.classList.add('automation-alt');},true);
+  window.addEventListener('keyup',e=>{if(e.key==='Alt')screen.classList.remove('automation-alt');},true);
+  window.addEventListener('blur',()=>screen.classList.remove('automation-alt'));
+  screen.querySelector('.automation-guide').append(Object.assign(document.createElement('p'),{textContent:'In Blend, hold Alt and drag a line up or down to curve it. Alt-double-click a segment to straighten it.'}));
+  let trackHeights={};try{trackHeights=JSON.parse(localStorage.getItem('visualiserAutomationHeights')||'{}')||{};}catch{}
+  const saveHeights=()=>{try{localStorage.setItem('visualiserAutomationHeights',JSON.stringify(trackHeights));}catch{}};
+  function resizable(lane,key,initial,min,redraw){
+    const handle=document.createElement('div');handle.className='automation-track-resize';handle.tabIndex=0;handle.setAttribute('role','separator');handle.setAttribute('aria-orientation','horizontal');handle.setAttribute('aria-label','Resize '+(lane.querySelector('strong')?.textContent||'track'));handle.setAttribute('aria-valuemin',min);handle.setAttribute('aria-valuemax','600');handle.title='Drag to resize track';
+    const height=value=>{const size=Math.max(min,Math.min(600,value));lane.style.height=size+'px';trackHeights[key]=size;handle.setAttribute('aria-valuenow',Math.round(size));redraw?.();};
+    let resizing;
+    handle.onpointerdown=e=>{if(e.button!==0)return;e.preventDefault();e.stopPropagation();resizing={y:e.clientY,height:lane.getBoundingClientRect().height};handle.setPointerCapture(e.pointerId);screen.classList.add('is-resizing-track');};
+    handle.onpointermove=e=>{if(!resizing)return;height(resizing.height+e.clientY-resizing.y);};
+    const finish=()=>{if(!resizing)return;resizing=null;screen.classList.remove('is-resizing-track');saveHeights();};
+    handle.onpointerup=finish;handle.onpointercancel=finish;handle.onlostpointercapture=finish;
+    handle.onkeydown=e=>{if(!['ArrowUp','ArrowDown','Home','End'].includes(e.key))return;e.preventDefault();e.stopPropagation();height(e.key==='Home'?min:e.key==='End'?600:lane.getBoundingClientRect().height+(e.key==='ArrowUp'?-1:1)*(e.shiftKey?32:8));saveHeights();};
+    lane.classList.add('automation-resizable-track');lane.append(handle);height(Number.isFinite(trackHeights[key])?trackHeights[key]:initial);
+  }
+  resizable(screen.querySelector('.automation-wave'),'audio',100,64,()=>{if(!screen.hidden)renderTimeline();});
+  screen.querySelector('.automation-heading h1').textContent='Automation';
+  screen.querySelector('.automation-heading .eyebrow').textContent='CREATE · SONG EDITOR';
+  screen.querySelector('.automation-heading p:not(.eyebrow)').textContent='Shape the details. Keep the music in view.';
+  $('automationClose').textContent='Back to Create';
+  const toolbar=screen.querySelector('.automation-toolbar');
+  const transport=document.createElement('div');transport.className='automation-transport';transport.setAttribute('role','group');transport.setAttribute('aria-label','Playback and history');
+  transport.append($('automationPlay'),$('automationUndo'),$('automationRedo'));toolbar.prepend(transport);
+  toolbar.insertBefore($('automationTime'),$('automationSnap'));
+  const fit=document.createElement('button');fit.id='automationFit';fit.type='button';fit.textContent='Fit song';fit.title='Show the whole song';
+  const locate=document.createElement('button');locate.id='automationLocate';locate.type='button';locate.textContent='Find playhead';locate.title='Bring the current playback position into view';
+  toolbar.append(fit,locate);
+  const preview=screen.querySelector('.automation-preview');
+  const previewHeading=document.createElement('div');previewHeading.className='automation-preview-heading';previewHeading.innerHTML='<span class="eyebrow">STAGE PREVIEW</span><span class="automation-live-indicator">Live</span>';preview.prepend(previewHeading);
+  const guidance=preview.querySelector('.automation-guide'),guide=document.createElement('details');guide.className='automation-guide';
+  guide.innerHTML='<summary>Editing shortcuts</summary>';while(guidance.children.length>1)guide.append(guidance.children[1]);guidance.replaceWith(guide);
+  const inspector=document.createElement('div');inspector.className='automation-inspector';
+  inspector.innerHTML='<span class="eyebrow">SELECTED TRACK</span><strong id="automationSelectedName">Choose a parameter track</strong><span id="automationSelectedValue">Click a track to inspect it.</span><small id="automationSelectedRange"></small>';
+  guide.before(inspector);
+  const addTrack=document.createElement('div');addTrack.className='automation-add-track';
+  addTrack.innerHTML='<label for="automationParameter">Add a parameter track</label><select id="automationParameter" aria-label="Parameter to automate"></select><button id="automationAddTrack" type="button">＋ Add track</button><small id="automationTrackCount"></small>';
+  inspector.after(addTrack);
+  let selectedIndex=null;
+  function selectTrack(index){
+    selectedIndex=index;
+    screen.querySelectorAll('.automation-lane').forEach(lane=>lane.classList.toggle('is-selected',Number(lane.dataset.index)===index));
+    const spec=index===-1?['MIDI tempo',20,400]:styleParameters[$('style').value]?.[index];
+    $('automationSelectedName').textContent=spec?.[0]||'Choose a parameter track';
+    $('automationSelectedRange').textContent=spec?`Range ${spec[1]} – ${spec[2]}`:'';
+    if(!spec)$('automationSelectedValue').textContent='Click a track to inspect it.';
+  }
+  function refreshTrackPicker(){
+    const select=$('automationParameter');select.replaceChildren();
+    styleParameters[$('style').value].forEach((spec,index)=>{if(!tracks().some(t=>t.index===index&&t.enabled))select.add(new Option(spec[0],index));});
+    select.disabled=!select.options.length;$('automationAddTrack').disabled=select.disabled;
+    if(select.disabled)select.add(new Option('All parameters added',''));
+    const count=tracks().filter(t=>t.enabled).length;$('automationTrackCount').textContent=`${count} parameter ${count===1?'track':'tracks'} · Edits are kept when you return to Create.`;
+  }
+  $('automationAddTrack').onclick=()=>{
+    const index=Number($('automationParameter').value);if($('automationParameter').disabled)return;
+    checkpoint();const existing=tracks().find(t=>t.index===index);
+    if(existing)existing.enabled=true;else tracks().push({index,enabled:true,mode:'linear',points:[{time:0,value:valueFor($('style').value,index)}]});
+    render();decorate();selectTrack(index);screen.querySelector(`.automation-lane[data-index="${index}"]`)?.scrollIntoView({block:'nearest',inline:'nearest'});
+  };
   const button=document.createElement('button');button.id='automationOpen';button.type='button';button.textContent='◇ Edit automation';button.hidden=true;
   document.querySelector('#presetWindow .style-options').after(button);
   const duration=()=>Number.isFinite(audio.duration)?audio.duration:30;
   const timeText=n=>`${Math.floor(n/60)}:${String(Math.floor(n%60)).padStart(2,'0')}`;
-  const historySnapshot=()=>({params:clone(tracks()),midi:window.MidiImport?.getState()?{points:clone(window.MidiImport.getState().tempoPoints),mode:window.MidiImport.getState().tempoMode}:null});
+  const historySnapshot=()=>({transition:window.StyleTransition?.get()||null,params:clone(tracks()),midi:window.MidiImport?.getState()?{points:clone(window.MidiImport.getState().tempoPoints),mode:window.MidiImport.getState().tempoMode}:null});
   function checkpoint(){history.push(historySnapshot());if(history.length>80)history.shift();future=[];updateHistory();}
+  window.Automation.checkpoint=checkpoint;
   function updateHistory(){$('automationUndo').disabled=!history.length;$('automationRedo').disabled=!future.length;}
-  function travel(back){const from=back?history:future,to=back?future:history;if(!from.length)return;to.push(historySnapshot());const snapshot=from.pop();tracksByStyle[$('style').value]=snapshot.params;if(snapshot.midi&&window.MidiImport?.getState()){const midi=window.MidiImport.getState();midi.tempoPoints=snapshot.midi.points;midi.tempoMode=snapshot.midi.mode;window.MidiImport.changed();}render();decorate();updateHistory();}
+  function travel(back){const from=back?history:future,to=back?future:history;if(!from.length)return;to.push(historySnapshot());const snapshot=from.pop();window.StyleTransition?.set(snapshot.transition);tracksByStyle[$('style').value]=snapshot.params;if(snapshot.midi&&window.MidiImport?.getState()){const midi=window.MidiImport.getState();midi.tempoPoints=snapshot.midi.points;midi.tempoMode=snapshot.midi.mode;window.MidiImport.changed();}render();decorate();updateHistory();}
   function decorate(){
     const source=$('styleOptionControls');source.querySelectorAll('[data-style-setting]').forEach(input=>{
       const row=input.closest('.style-setting');if(row.querySelector('.automation-diamond'))return;
@@ -32,8 +94,9 @@
       diamond.addEventListener('click',()=>{const existing=tracks().find(t=>t.index===index);if(existing)existing.enabled=!existing.enabled;else tracks().push({index,enabled:true,mode:'linear',points:[{time:0,value:Number(input.value)}]});decorate();});row.append(diamond);
     });
     source.querySelectorAll('.automation-diamond').forEach(b=>{if(!styleParameters[$('style').value][Number(b.dataset.index)])return;const selected=tracks().some(t=>t.index===Number(b.dataset.index)&&t.enabled);b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected));const name=styleParameters[$('style').value][Number(b.dataset.index)][0];b.setAttribute('aria-label',`${selected?'Disable':'Enable'} ${name} automation`);b.dataset.hint=`${selected?'Disable':'Automate'} ${name}`;});
-    button.hidden=!tracks().some(t=>t.enabled);
+    button.hidden=!loadedFile&&!tracks().some(t=>t.enabled);button.textContent='◇ Edit song & automation';
   }
+  window.addEventListener('create-audio-loaded',decorate);
   new MutationObserver(decorate).observe($('styleOptionControls'),{childList:true,subtree:true});
   new MutationObserver(()=>{history=[];future=[];decorate();}).observe($('styleName'),{childList:true});
   const ns='http://www.w3.org/2000/svg';
@@ -44,8 +107,18 @@
     svg.replaceChildren();svg._track=track;svg._spec=spec;const w=Math.max(1,svg.clientWidth),h=Math.max(1,svg.clientHeight);svg.setAttribute('viewBox',`0 0 ${w} ${h}`);const x=p=>p.time/duration()*w,y=p=>12+(spec[2]-p.value)/(spec[2]-spec[1])*(h-24);
     for(let i=1;i<4;i++)svg.append(svgElement('line',{x1:0,x2:w,y1:i*h/4,y2:i*h/4,class:'automation-grid'}));
     let d=`M 0 ${y(track.points[0]||{value:track.index===-1?120:valueFor($('style').value,track.index)})}`;
-    track.points.forEach((p,i)=>{if(track.mode==='hold'&&i)d+=` H ${x(p)} V ${y(p)}`;else d+=` L ${x(p)} ${y(p)}`;});d+=` H ${w}`;
+    track.points.forEach((p,i)=>{
+      if(track.mode==='hold'&&i)d+=` H ${x(p)} V ${y(p)}`;
+      else if(i&&track.points[i-1].curve){const a=track.points[i-1],steps=Math.min(256,Math.max(24,Math.ceil(Math.abs(x(p)-x(a))/5)));for(let j=1;j<=steps;j++){const t=j/steps;d+=` L ${x(a)+(x(p)-x(a))*t} ${y(a)+(y(p)-y(a))*ParameterAutomation.blend(t,a.curve)}`;}}
+      else d+=` L ${x(p)} ${y(p)}`;
+    });d+=` H ${w}`;
     svg.append(svgElement('path',{d,class:'automation-line'}));
+    if(track.mode!=='hold')for(let i=0;i<track.points.length-1;i++){
+      const a=track.points[i],b=track.points[i+1];if(b.time<=a.time)continue;
+      let segment=`M ${x(a)} ${y(a)}`;const steps=Math.min(256,Math.max(24,Math.ceil(Math.abs(x(b)-x(a))/5)));
+      for(let j=1;j<=steps;j++){const t=j/steps;segment+=` L ${x(a)+(x(b)-x(a))*t} ${y(a)+(y(b)-y(a))*ParameterAutomation.blend(t,a.curve)}`;}
+      svg.append(svgElement('path',{d:segment,class:'automation-segment','data-segment':i}));
+    }
     track.points.forEach((p,i)=>{const c=svgElement('circle',{cx:x(p),cy:y(p),r:5,class:'automation-point','data-point':i,tabindex:0,role:'button','aria-label':`${spec[0]} ${p.value} at ${timeText(p.time)}. Delete to remove.`});svg.append(c);});
   }
   function render(){
@@ -54,40 +127,67 @@
     const tempo=window.MidiImport?.tempoTrack();
     [...(tempo?[tempo]:[]),...tracks().filter(t=>t.enabled)].forEach(track=>{
       const spec=track.index===-1?['MIDI tempo (BPM)',window.MidiImport.getState().data.tempos.reduce((v,t)=>Math.min(v,t.bpm),20),window.MidiImport.getState().data.tempos.reduce((v,t)=>Math.max(v,t.bpm),400),120,.1]:styleParameters[$('style').value][track.index];if(!spec)return;
-      const lane=document.createElement('div');lane.className='automation-lane'+(track.index===-1?' automation-tempo':'');const label=document.createElement('div');label.className='automation-track-label';
+      const lane=document.createElement('div');lane.className='automation-lane'+(track.index===-1?' automation-tempo':'');lane.dataset.index=track.index;lane.addEventListener('pointerdown',()=>selectTrack(track.index));const label=document.createElement('div');label.className='automation-track-label';
       const title=document.createElement('strong');title.textContent=spec[0];const value=document.createElement('small');value.className='automation-current-value';value.dataset.index=track.index;
       const mode=document.createElement('div');mode.className='automation-mode';mode.setAttribute('role','group');mode.setAttribute('aria-label',spec[0]+' interpolation');for(const [kind,name] of [['linear','Blend'],['hold','Hold']]){const choice=document.createElement('button');choice.type='button';choice.textContent=name;choice.setAttribute('aria-pressed',String(track.mode===kind));choice.onclick=()=>{checkpoint();track.mode=kind;if(track.index===-1)window.MidiImport.changed();[...mode.children].forEach(b=>b.setAttribute('aria-pressed',String(b===choice)));drawLane(svg,track,spec);};mode.append(choice);}
       const reset=document.createElement('button');reset.type='button';reset.textContent='Reset lane';reset.onclick=()=>{checkpoint();track.points=[{time:0,value:track.index===-1?window.MidiImport.getState().bpm:valueFor($('style').value,track.index)}];if(track.index===-1)window.MidiImport.changed();drawLane(svg,track,spec);};label.append(title,value,mode,reset);
+      if(track.index!==-1){const hide=document.createElement('button');hide.type='button';hide.className='automation-hide-track';hide.textContent='×';hide.title='Hide track · Keeps its points';hide.setAttribute('aria-label',`Hide ${spec[0]} track, keeping its points`);hide.onclick=()=>{checkpoint();track.enabled=false;render();decorate();};label.append(hide);}
       const svg=svgElement('svg',{viewBox:'0 0 1000 140',preserveAspectRatio:'none',class:'automation-curve','aria-label':`${spec[0]} automation track`});lane.append(label,svg);root.append(lane);drawLane(svg,track,spec);
+      resizable(lane,`${$('style').value}:${track.index}`,160,144,()=>drawLane(svg,track,spec));
+      let curvePress;
       svg.addEventListener('pointerdown',e=>{
-        if(e.button!==0)return;e.preventDefault();checkpoint();let point;
+        if(e.button!==0)return;e.preventDefault();curvePress=undefined;
+        if(e.altKey&&!e.target.hasAttribute('data-point')){
+          if(track.mode==='hold')return;
+          const segment=Number(e.target.getAttribute('data-segment'));if(!e.target.hasAttribute('data-segment'))return;
+          const a=track.points[segment],b=track.points[segment+1];if(!a||!b||a.value===b.value)return;
+          curvePress={segment,x:e.clientX,y:e.clientY,time:performance.now()};
+          checkpoint();drag={svg,track,spec,curvePoint:a,startCurve:a.curve||0,startY:e.clientY,direction:b.value>a.value?1:-1};svg.classList.add('is-curving');svg.setPointerCapture(e.pointerId);return;
+        }
+        checkpoint();let point;
         if(e.target.hasAttribute('data-point'))point=track.points[Number(e.target.dataset.point)];else{point=quantise(coordinates(e,svg,spec),spec);track.points.push(point);}
-        drag={svg,track,spec,point};svg.setPointerCapture(e.pointerId);pointMove(e);
+        track.points.sort((a,b)=>a.time-b.time);const index=track.points.indexOf(point),previous=track.points[index-1],next=track.points[index+1];
+        drag={svg,track,spec,point,minTime:previous?Math.min(point.time,previous.time+.001):0,maxTime:next?Math.max(point.time,next.time-.001):duration()};svg.setPointerCapture(e.pointerId);pointMove(e);
       });
       svg.addEventListener('pointermove',pointMove);
-      svg.addEventListener('pointerup',()=>{drag=undefined;});svg.addEventListener('pointercancel',()=>{drag=undefined;});
-      const remove=e=>{if(!e.target.hasAttribute('data-point'))return;e.preventDefault();if(track.index===-1&&track.points.length===1)return;checkpoint();track.points.splice(Number(e.target.dataset.point),1);if(track.index===-1)window.MidiImport.changed();drawLane(svg,track,spec);};svg.addEventListener('contextmenu',remove);svg.addEventListener('keydown',e=>{if(e.key==='Delete'||e.key==='Backspace')remove(e);});
+      const finish=()=>{svg.classList.remove('is-curving');drag=undefined;};svg.addEventListener('pointerup',finish);svg.addEventListener('pointercancel',finish);svg.addEventListener('lostpointercapture',finish);
+      svg.addEventListener('dblclick',e=>{
+        if(!e.altKey||track.mode==='hold'||e.target.hasAttribute('data-point'))return;
+        // Pointer capture retargets real double-clicks to the SVG rather than its segment.
+        const segment=e.target.hasAttribute('data-segment')?Number(e.target.dataset.segment):curvePress&&performance.now()-curvePress.time<800&&Math.hypot(e.clientX-curvePress.x,e.clientY-curvePress.y)<8?curvePress.segment:null;
+        if(segment===null||!track.points[segment])return;e.preventDefault();checkpoint();track.points[segment].curve=0;curvePress=undefined;if(track.index===-1)window.MidiImport.changed();drawLane(svg,track,spec);
+      });
+      const remove=e=>{if(!e.target.hasAttribute('data-point'))return;e.preventDefault();if(track.index===-1&&track.points.length===1)return;checkpoint();track.points.splice(Number(e.target.dataset.point),1);if(track.index===-1)window.MidiImport.changed();drawLane(svg,track,spec);};svg.addEventListener('contextmenu',e=>{
+        const isPoint=e.target.hasAttribute('data-point'),segment=e.target.hasAttribute('data-segment')?Number(e.target.dataset.segment):null,items=[];
+        if(isPoint)items.push({label:'Delete node',disabled:track.index===-1&&track.points.length===1,run:()=>remove(e)});
+        if(segment!==null&&track.mode!=='hold')items.push({label:'Straighten blend',run:()=>{checkpoint();track.points[segment].curve=0;if(track.index===-1)window.MidiImport.changed();drawLane(svg,track,spec);}});
+        items.push({label:track.mode==='hold'?'Use Blend':'Use Hold',run:()=>mode.querySelector(track.mode==='hold'?'button:first-child':'button:last-child').click()},{label:'Reset lane',run:()=>reset.click()});AppContextMenu.open(e,items);
+      });svg.addEventListener('keydown',e=>{if(e.key==='Delete'||e.key==='Backspace')remove(e);});
     });
-    renderTimeline();updateHistory();
+    if(!root.children.length){const empty=document.createElement('div');empty.className='automation-empty';empty.innerHTML='<span aria-hidden="true">◇</span><strong>Give a parameter some movement</strong><p>Add a track from the panel to start shaping it over time.</p>';root.append(empty);}
+    const enabled=[...(tempo?[tempo]:[]),...tracks().filter(t=>t.enabled)];if(!enabled.some(t=>t.index===selectedIndex))selectedIndex=enabled[0]?.index??null;
+    selectTrack(selectedIndex);refreshTrackPicker();renderTimeline();updateHistory();
   }
-  function pointMove(e){if(!drag||drag.svg!==e.currentTarget)return;const location=coordinates(e,drag.svg,drag.spec);const point=quantise(location,drag.spec);Object.assign(drag.point,{time:location.snapped?audio.currentTime:point.time,value:point.value});drag.track.points.sort((a,b)=>a.time-b.time);if(drag.track.index===-1){MidiEngine.invalidate(window.MidiImport.getState());drawMidiNotes();}drawLane(drag.svg,drag.track,drag.spec);$('automationHelp').textContent=`${drag.spec[0]} · ${drag.point.value} at ${drag.point.time.toFixed(2)}s${location.snapped?' · Snapped to playhead':''}`;}
+  function pointMove(e){if(!drag||drag.svg!==e.currentTarget)return;
+    if(drag.curvePoint){const bend=Math.max(-4,Math.min(4,drag.startCurve+(e.clientY-drag.startY)/70*drag.direction));drag.curvePoint.curve=Math.abs(bend)<.04?0:Number(bend.toFixed(3));if(drag.track.index===-1){MidiEngine.invalidate(window.MidiImport.getState());drawMidiNotes();}drawLane(drag.svg,drag.track,drag.spec);$('automationHelp').textContent=`${drag.spec[0]} · ${drag.curvePoint.curve?'Curve '+drag.curvePoint.curve.toFixed(2):'Straight blend'} · Alt-double-click the segment to straighten`;return;}
+    const location=coordinates(e,drag.svg,drag.spec);const point=quantise(location,drag.spec);const time=Math.max(drag.minTime,Math.min(drag.maxTime,location.snapped?audio.currentTime:point.time));Object.assign(drag.point,{time,value:point.value});if(drag.track.index===-1){MidiEngine.invalidate(window.MidiImport.getState());drawMidiNotes();}drawLane(drag.svg,drag.track,drag.spec);$('automationHelp').textContent=`${drag.spec[0]} · ${drag.point.value} at ${drag.point.time.toFixed(2)}s${location.snapped&&time===audio.currentTime?' · Snapped to playhead':''}`;}
   function renderTimeline(){
     const viewport=$('automationScroll');$('automationTimeline').style.width=`${Math.max(600,viewport.clientWidth)*zoom}px`;
     screen.querySelectorAll('.automation-curve').forEach(svg=>drawLane(svg,svg._track,svg._spec));
     drawMidiNotes();
     const ruler=$('automationRuler');ruler.replaceChildren();for(let i=0;i<=10;i++){const tick=document.createElement('span');tick.textContent=timeText(duration()*i/10);tick.style.left=`${i*10}%`;ruler.append(tick);}
-    const c=$('automationWave');c.width=Math.min(16384,Math.max(400,c.clientWidth*devicePixelRatio));c.height=100*devicePixelRatio;const g=c.getContext('2d');g.fillStyle='#99acdf';
+    const c=$('automationWave');c.width=Math.min(16384,Math.max(400,c.clientWidth*devicePixelRatio));c.height=Math.max(1,c.clientHeight)*devicePixelRatio;const g=c.getContext('2d');g.fillStyle='#99acdf';
     for(let i=0;i<c.width;i++){const amplitude=wave[Math.floor(i/c.width*wave.length)]||.015;g.fillRect(i,c.height/2-amplitude*c.height*.44,1,Math.max(1,amplitude*c.height*.88));}
   }
   async function loadWave(){
     if(!loadedFile){$('automationAudioName').textContent='Choose audio in Create';$('automationHelp').textContent='Choose an audio file in Create to edit against its waveform.';wave=[];renderTimeline();return;}
     $('automationAudioName').textContent=loadedFile.name||'Your audio';if(waveFile===loadedFile)return;
     const file=loadedFile,version=++decodeVersion;wave=[];$('automationHelp').textContent='Drawing your waveform…';let decoder;
-    try{decoder=new AudioContext();const buffer=await decoder.decodeAudioData(await file.arrayBuffer());if(version!==decodeVersion)return;const count=4000,result=new Float32Array(count);for(let channel=0;channel<buffer.numberOfChannels;channel++){const data=buffer.getChannelData(channel);for(let i=0;i<count;i++){const start=Math.floor(i*data.length/count),end=Math.floor((i+1)*data.length/count);for(let j=start;j<end;j++)result[i]=Math.max(result[i],Math.abs(data[j]));}}wave=result;waveFile=file;$('automationHelp').textContent='Click a lane to add a point · Drag to shape it · Right-click a point to remove it';renderTimeline();}
+    try{decoder=new AudioContext();const buffer=await decoder.decodeAudioData(await file.arrayBuffer());if(version!==decodeVersion)return;const count=4000,result=new Float32Array(count);for(let channel=0;channel<buffer.numberOfChannels;channel++){const data=buffer.getChannelData(channel);for(let i=0;i<count;i++){const start=Math.floor(i*data.length/count),end=Math.floor((i+1)*data.length/count);for(let j=start;j<end;j++)result[i]=Math.max(result[i],Math.abs(data[j]));}}wave=result;waveFile=file;$('automationHelp').textContent='Click to add · Drag nodes · Alt-drag a Blend line to curve · Right-click a node to remove';renderTimeline();}
     catch{$('automationHelp').textContent='Waveform unavailable for this file. You can still edit and preview automation.';}finally{if(decoder)await decoder.close();}
   }
-  function renderMidiNotes(){screen.querySelector('.midi-notes-lane')?.remove();if(!window.MidiImport?.getState())return;const lane=document.createElement('div');lane.className='midi-notes-lane';lane.innerHTML='<div class="automation-track-label"><strong>MIDI notes</strong><small>Aligned with your audio</small></div>';lane.append(svgElement('svg',{class:'midi-note-svg',preserveAspectRatio:'none'}));$('automationTracks').before(lane);}
-  function drawMidiNotes(){const svg=screen.querySelector('.midi-note-svg'),state=window.MidiImport?.getState();if(!svg||!state)return;svg.replaceChildren();const w=Math.max(1,svg.clientWidth),h=140;svg.setAttribute('viewBox',`0 0 ${w} ${h}`);const notes=MidiEngine.timing(state).notes;const min=notes.reduce((v,n)=>Math.min(v,n.pitch),60),max=notes.reduce((v,n)=>Math.max(v,n.pitch),72);const scroll=$('automationScroll'),left=Math.max(0,scroll.scrollLeft-180)/w*duration(),right=(scroll.scrollLeft+scroll.clientWidth)/w*duration();for(const n of notes){if(n.startTime>right)break;if(n.endTime<left)continue;svg.append(svgElement('rect',{x:n.startTime/duration()*w,y:8+(max-n.pitch)/Math.max(1,max-min)*(h-20),width:Math.max(1,(n.endTime-n.startTime)/duration()*w),height:Math.max(2,Math.min(8,(h-20)/Math.max(1,max-min))),rx:1,fill:state.colours[n.track%state.colours.length],opacity:.7}));}}
+  function renderMidiNotes(){screen.querySelector('.midi-notes-lane')?.remove();if(!window.MidiImport?.getState())return;const lane=document.createElement('div');lane.className='midi-notes-lane';lane.innerHTML='<div class="automation-track-label"><strong>MIDI notes</strong><small>Aligned with your audio</small></div>';lane.append(svgElement('svg',{class:'midi-note-svg',preserveAspectRatio:'none'}));$('automationTracks').before(lane);resizable(lane,'midi-notes',140,72,drawMidiNotes);}
+  function drawMidiNotes(){const svg=screen.querySelector('.midi-note-svg'),state=window.MidiImport?.getState();if(!svg||!state)return;svg.replaceChildren();const w=Math.max(1,svg.clientWidth),h=Math.max(24,svg.clientHeight);svg.setAttribute('viewBox',`0 0 ${w} ${h}`);const notes=MidiEngine.timing(state).notes;const min=notes.reduce((v,n)=>Math.min(v,n.pitch),60),max=notes.reduce((v,n)=>Math.max(v,n.pitch),72);const scroll=$('automationScroll'),left=Math.max(0,scroll.scrollLeft-180)/w*duration(),right=(scroll.scrollLeft+scroll.clientWidth)/w*duration();for(const n of notes){if(n.startTime>right)break;if(n.endTime<left)continue;svg.append(svgElement('rect',{x:n.startTime/duration()*w,y:8+(max-n.pitch)/Math.max(1,max-min)*(h-20),width:Math.max(1,(n.endTime-n.startTime)/duration()*w),height:Math.max(2,Math.min(8,(h-20)/Math.max(1,max-min))),rx:1,fill:state.colours[n.track%state.colours.length],opacity:.7}));}}
   function openEditor(){closePresets();screen.hidden=false;window.dispatchEvent(new Event('automation-open'));render();loadWave();}
   window.Automation.openEditor=openEditor;
   window.addEventListener('midi-changed',()=>{if(!screen.hidden)render();});
@@ -103,6 +203,8 @@
     zoom=Math.max(1,Math.min(64,value));$('automationZoom').value=zoom;renderTimeline();viewport.scrollLeft=fraction*($('automationTimeline').clientWidth-180)-anchor+180;
   }
   $('automationZoom').oninput=()=>{const box=$('automationScroll').getBoundingClientRect();setZoom(Number($('automationZoom').value),box.left+box.width/2);};
+  fit.onclick=()=>{const box=$('automationScroll').getBoundingClientRect();setZoom(1,box.left+180);$('automationScroll').scrollLeft=0;};
+  locate.onclick=()=>{const viewport=$('automationScroll'),position=180+($('automationTimeline').clientWidth-180)*audio.currentTime/duration();viewport.scrollLeft=Math.max(0,position-180-(viewport.clientWidth-180)/2);};
   $('automationSnap').onclick=()=>{snapToPlayhead=!snapToPlayhead;$('automationSnap').setAttribute('aria-pressed',String(snapToPlayhead));};
   $('automationScroll').addEventListener('wheel',e=>{
     e.preventDefault();const viewport=e.currentTarget;const scale=e.deltaMode===1?16:e.deltaMode===2?viewport.clientWidth:1;
@@ -112,7 +214,7 @@
   },{passive:false});
   $('automationWave').onclick=e=>{if(!loadedFile)return;const box=e.currentTarget.getBoundingClientRect();audio.currentTime=Math.max(0,Math.min(duration(),(e.clientX-box.left)/box.width*duration()));};
   screen.addEventListener('keydown',e=>e.stopPropagation());
-  document.addEventListener('keydown',e=>{if(screen.hidden)return;if(e.target.matches('input,select')&&e.key!=='Escape'&&!((e.ctrlKey||e.metaKey)&&['z','y'].includes(e.key.toLowerCase())))return;e.stopImmediatePropagation();if(e.key==='Escape'){e.preventDefault();closeEditor();}else if(e.code==='Space'){e.preventDefault();$('automationPlay').click();}else if((e.ctrlKey||e.metaKey)&&['z','y'].includes(e.key.toLowerCase())){e.preventDefault();travel(e.key.toLowerCase()==='z'&&!e.shiftKey);}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();window.Projects?.save();}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='t'){e.preventDefault();saveCurrentAsTemplate();}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='i'){e.preventDefault();$('easeSnapshot').click();}},true);
+  document.addEventListener('keydown',e=>{if(screen.hidden)return;if(e.target.closest('.app-context-menu,.slider-number-editor,.section-colour-popup,.transition-band-range'))return;if(e.target.closest('.automation-transition')&&!((e.ctrlKey||e.metaKey)&&['z','y','s'].includes(e.key.toLowerCase()))&&e.key!=='Escape')return;if(e.target.matches('.automation-track-resize')&&['ArrowUp','ArrowDown','Home','End'].includes(e.key))return;if(e.target.matches('input,select')&&e.key!=='Escape'&&!((e.ctrlKey||e.metaKey)&&['z','y'].includes(e.key.toLowerCase())))return;e.stopImmediatePropagation();if(e.key==='Escape'){e.preventDefault();closeEditor();}else if(e.code==='Space'){e.preventDefault();$('automationPlay').click();}else if((e.ctrlKey||e.metaKey)&&['z','y'].includes(e.key.toLowerCase())){e.preventDefault();travel(e.key.toLowerCase()==='z'&&!e.shiftKey);}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();window.Projects?.save();}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='t'){e.preventDefault();saveCurrentAsTemplate();}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='i'){e.preventDefault();$('easeSnapshot').click();}},true);
   new ResizeObserver(()=>{if(!screen.hidden)renderTimeline();}).observe($('automationScroll'));
-  function tick(){if(!screen.hidden){$('automationTime').textContent=`${timeText(audio.currentTime)} / ${timeText(duration())}`;$('automationPlay').textContent=audio.paused?'Play':'Pause';const timeline=$('automationTimeline');$('automationPlayhead').style.left=`${180+(timeline.clientWidth-180)*audio.currentTime/duration()}px`;screen.querySelectorAll('.automation-current-value').forEach(v=>{const index=Number(v.dataset.index);if(index===-1){v.textContent=window.MidiImport?.getState()?MidiEngine.timing(window.MidiImport.getState()).bpmAt(audio.currentTime).toFixed(1)+' BPM':'';return;}v.textContent=ParameterAutomation.evaluate(tracks().find(t=>t.index===index),audio.currentTime,valueFor($('style').value,index),styleParameters[$('style').value][index]);});const preview=$('automationPreview');if(preview.width!==canvas.width||preview.height!==canvas.height){preview.width=canvas.width;preview.height=canvas.height;}preview.getContext('2d').drawImage(canvas,0,0);}requestAnimationFrame(tick);}tick();decorate();
+  function tick(){if(!screen.hidden){$('automationTime').textContent=`${timeText(audio.currentTime)} / ${timeText(duration())}`;$('automationPlay').textContent=audio.paused?'Play':'Pause';const timeline=$('automationTimeline');$('automationPlayhead').style.left=`${180+(timeline.clientWidth-180)*audio.currentTime/duration()}px`;screen.querySelectorAll('.automation-current-value').forEach(v=>{const index=Number(v.dataset.index);if(index===-1){v.textContent=window.MidiImport?.getState()?MidiEngine.timing(window.MidiImport.getState()).bpmAt(audio.currentTime).toFixed(1)+' BPM':'';return;}v.textContent=ParameterAutomation.evaluate(tracks().find(t=>t.index===index),audio.currentTime,valueFor($('style').value,index),styleParameters[$('style').value][index]);});const selected=screen.querySelector('.automation-lane.is-selected .automation-current-value');if(selected)$('automationSelectedValue').textContent=selected.textContent;const preview=$('automationPreview');if(preview.width!==canvas.width||preview.height!==canvas.height){preview.width=canvas.width;preview.height=canvas.height;}preview.getContext('2d').drawImage(canvas,0,0);}requestAnimationFrame(tick);}tick();decorate();
 })();

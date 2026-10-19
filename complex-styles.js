@@ -29,5 +29,5 @@ if(rawDt>0||!s.history.length){s.history.unshift(Array.from(levels));s.history=s
 
 ctx.restore();return true;
 }
-const api={names,specs,palettes,paint,movements,focuses,designs,getDesign};if(typeof module!=='undefined')module.exports=api;else root.ComplexStyles=api;
+const api={names,specs,palettes,paint,movements,focuses,designs,getDesign,snapshot:ctx=>states.has(ctx)?structuredClone(states.get(ctx)):null,restore:(ctx,state)=>state?states.set(ctx,structuredClone(state)):states.delete(ctx)};if(typeof module!=='undefined')module.exports=api;else root.ComplexStyles=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

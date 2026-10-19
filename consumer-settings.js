@@ -25,16 +25,17 @@
     card.querySelector('.preset-heading').after(search);
     const input=search.querySelector('input'),clear=search.querySelector('button'),message=search.querySelector('small');
     let expanded=null;
-    const text=node=>(node.textContent+' '+(node.dataset.search||'')+' '+[...node.querySelectorAll('[aria-label],[data-search]')].map(child=>(child.getAttribute('aria-label')||'')+' '+(child.dataset.search||'')).join(' ')).toLowerCase();
+    const text=node=>[...node.querySelectorAll('label,strong,.option-label,button')].filter(el=>!el.closest('.colour-menu,.colour-wheel,.live-rgb-menu')&&!el.parentElement.closest('label')&&!(el.tagName==='BUTTON'&&node.querySelector('label'))&&!el.matches('.slider-value-control,#updateInstalledVersion')).map(el=>{
+      const name=el.cloneNode(true);name.querySelectorAll('input,select,textarea,output,button,small,kbd,.colour-picker,.slider-value-generated').forEach(child=>child.remove());return name.textContent;
+    }).join(' ').toLowerCase();
     function filter(){
       const words=input.value.trim().toLowerCase().split(/\s+/).filter(Boolean),groups=[...card.querySelectorAll(':scope>.settings-group,:scope>.settings-footer')];
       if(words.length&&!expanded)expanded=new Map(groups.map(group=>[group,group.open]));
       let matches=0;
       for(const group of groups){
-        const heading=group.querySelector(':scope>summary')?.textContent||'Help app version keyboard shortcuts';
         let visible=0;
-        const rows=[...group.querySelectorAll(':scope>.settings-row')];
-        for(const row of rows){const content=(heading+' '+text(row)).toLowerCase(),show=!words.length||words.every(word=>content.includes(word));row.toggleAttribute('data-settings-search-hidden',!show);if(show)visible++;}
+        const rows=[...group.querySelectorAll(':scope>.settings-row,:scope>.update-settings-status')];
+        for(const row of rows){const content=text(row),show=!words.length||words.every(word=>content.includes(word));row.toggleAttribute('data-settings-search-hidden',!show);if(show)visible++;}
         if(!rows.length)visible=!words.length||words.every(word=>text(group).includes(word))?1:0;
         group.toggleAttribute('data-settings-search-hidden',!visible);
         if(words.length&&visible&&group.tagName==='DETAILS')group.open=true;

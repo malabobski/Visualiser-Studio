@@ -104,7 +104,7 @@ async function renderExact(req, res, settings, ffmpegBin = 'ffmpeg') {
         const parsed = JSON.parse(settings.params || '[]');
         if (Array.isArray(parsed)) params = parsed.filter((n) => typeof n === 'number' && Number.isFinite(n));
       } catch { /* malformed/missing params — offline-renderer falls back to defaults */ }
-      await renderOffline(input, output, { width, height, fps: [24, 30, 60].includes(settings.fps) ? settings.fps : 30, style: settings.style, colour: /^#[0-9a-f]{6}$/i.test(settings.colour) ? settings.colour : '#9c6bff', background: /^#[0-9a-f]{6}$/i.test(settings.background) ? settings.background : '#11121a', params, midi:settings.midi, automation:(()=>{try{return JSON.parse(settings.automation||'[]');}catch{return [];}})(), design: (()=>{try{return JSON.parse(settings.design||'{}');}catch{return {};}})() }, sendProgress, ffmpegBin);
+      await renderOffline(input, output, { width, height, fps: [24, 30, 60].includes(settings.fps) ? settings.fps : 30, style: settings.style, colour: /^#[0-9a-f]{6}$/i.test(settings.colour) ? settings.colour : '#9c6bff', background: /^#[0-9a-f]{6}$/i.test(settings.background) ? settings.background : '#11121a', params, midi:settings.midi, transition:(()=>{try{return JSON.parse(settings.transition||'null');}catch{return null;}})(), automation:(()=>{try{return JSON.parse(settings.automation||'[]');}catch{return [];}})(), design: (()=>{try{return JSON.parse(settings.design||'{}');}catch{return {};}})() }, sendProgress, ffmpegBin);
       const token = randomUUID();
       const expiry = setTimeout(() => { completedDownloads.delete(token); fsp.rm(temp, { recursive: true, force: true }).catch(() => {}); }, 60 * 60 * 1000);
       expiry.unref();
@@ -139,9 +139,19 @@ async function serveDownload(req, res, token) {
 // system's PATH, which is how the app worked before.
 function startServer({ port = 3000, ffmpegBin = 'ffmpeg' } = {}) {
   return new Promise((resolve, reject) => {
-    const midiJobs=new Map();
+    const midiJobs=new Map(),transitionJobs=new Map();
     const server = http.createServer(async (req, res) => {
       const requestUrl = new URL(req.url, 'http://localhost');
+      if(req.method==='POST'&&requestUrl.pathname==='/render-transition'){
+        let size=0;const chunks=[];try{
+          for await(const chunk of req){size+=chunk.length;if(size>8*1024*1024)return send(res,413,'Transition settings are too large.');chunks.push(chunk);}
+          const config=require('./scene-transitions').clean(JSON.parse(Buffer.concat(chunks).toString()));if(!config?.enabled)throw Error('No active fade');
+          const now=Date.now();for(const [key,value] of transitionJobs)if(now-value.created>120000)transitionJobs.delete(key);
+          if(transitionJobs.size>=10)return send(res,429,'Too many pending transition exports.');
+          const token=randomUUID();transitionJobs.set(token,{config,created:now});return send(res,200,JSON.stringify({token}),'application/json');
+        }catch{return send(res,400,'Could not read transition settings.');}
+      }
+      if(req.method==='GET'&&requestUrl.pathname==='/scene-fft.js'){const code=await fsp.readFile(require.resolve('fft.js'),'utf8');return send(res,200,'(function(){const module={exports:{}};'+code+';window.SceneFFT=module.exports;})();','application/javascript');}
       if(req.method==='POST'&&requestUrl.pathname==='/render-midi'){
         let size=0;const chunks=[];try{for await(const chunk of req){size+=chunk.length;if(size>24*1024*1024){send(res,413,'MIDI attachment is too large.');return;}chunks.push(chunk);}const state=JSON.parse(Buffer.concat(chunks).toString());const data=state.data;if(!data||!Array.isArray(data.notes)||!Array.isArray(data.tracks)||!Array.isArray(data.tempos)||data.notes.length>100000||data.tracks.length>4096||!data.tempos.length)throw Error('Invalid MIDI attachment.');if(data.notes.some(n=>![n.start,n.end,n.pitch,n.velocity,n.track].every(Number.isFinite)||n.end<n.start||n.pitch<0||n.pitch>127)||data.tempos.some(t=>!Number.isFinite(t.beat)||!Number.isFinite(t.bpm)||t.bpm<=0))throw Error('Invalid MIDI timing.');const now=Date.now();for(const [key,value] of midiJobs)if(now-value.created>120000)midiJobs.delete(key);if(midiJobs.size>=10){send(res,429,'Too many pending MIDI exports.');return;}const token=randomUUID();midiJobs.set(token,{state,created:now});send(res,200,JSON.stringify({token}),'application/json');}catch{send(res,400,'Could not read MIDI export settings.');}return;
       }
@@ -149,7 +159,7 @@ function startServer({ port = 3000, ffmpegBin = 'ffmpeg' } = {}) {
         const requestedFps = Number(requestUrl.searchParams.get('fps'));
         return convert(req, res, [24, 30, 60].includes(requestedFps) ? requestedFps : 30, ffmpegBin);
       }
-      if (req.method === 'POST' && requestUrl.pathname === '/render') {const token=requestUrl.searchParams.get('midiToken');const midi=midiJobs.get(token)?.state;if(token&&!midi)return send(res,400,'MIDI export settings expired. Please export again.');if(token)midiJobs.delete(token);return renderExact(req, res, { style: requestUrl.searchParams.get('style') || 'bars', colour: requestUrl.searchParams.get('colour') || '#9c6bff', background: requestUrl.searchParams.get('background') || '#11121a', size: requestUrl.searchParams.get('size') || '1280x720', fps: Number(requestUrl.searchParams.get('fps')), params: requestUrl.searchParams.get('params') || '[]', design:requestUrl.searchParams.get('design')||'{}',automation:requestUrl.searchParams.get('automation')||'[]',midi }, ffmpegBin);}
+      if (req.method === 'POST' && requestUrl.pathname === '/render') {const token=requestUrl.searchParams.get('midiToken');const midi=midiJobs.get(token)?.state;if(token&&!midi)return send(res,400,'MIDI export settings expired. Please export again.');const transitionToken=requestUrl.searchParams.get('transitionToken'),job=transitionJobs.get(transitionToken);if(transitionToken&&(!job||Date.now()-job.created>120000))return send(res,400,'Transition export settings expired. Please export again.');if(transitionToken)transitionJobs.delete(transitionToken);if(token)midiJobs.delete(token);return renderExact(req, res, { style: requestUrl.searchParams.get('style') || 'bars', colour: requestUrl.searchParams.get('colour') || '#9c6bff', background: requestUrl.searchParams.get('background') || '#11121a', size: requestUrl.searchParams.get('size') || '1280x720', fps: Number(requestUrl.searchParams.get('fps')), params: requestUrl.searchParams.get('params') || '[]', design:requestUrl.searchParams.get('design')||'{}',automation:requestUrl.searchParams.get('automation')||'[]',transition:JSON.stringify(job?.config||null),midi }, ffmpegBin);}
       if (req.method === 'GET' && requestUrl.pathname === '/download') return serveDownload(req, res, requestUrl.searchParams.get('token'));
       if (req.method !== 'GET') return send(res, 405, 'Method not allowed');
       const requested = req.url === '/' ? '/index.html' : req.url;

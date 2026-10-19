@@ -5,14 +5,14 @@ const { execFileSync, spawn } = require('node:child_process');
 
 (async () => {
   assert.equal(process.platform, 'darwin', 'Verify the app on macOS');
-  const folder = path.resolve('dist/mac-preview', process.arch === 'arm64' ? 'mac-arm64' : 'mac');
-  const app = path.join(folder, 'Visualiser Studio Mac Preview.app');
+  const release=process.argv.includes('--release');
+  const folder = path.resolve(release?'dist/mac-release':'dist/mac-preview', process.arch === 'arm64' ? 'mac-arm64' : 'mac');
+  const app = path.join(folder, release?'Visualiser Studio.app':'Visualiser Studio Mac Preview.app');
   const resources = path.join(app, 'Contents/Resources');
   const asarPath = path.join(resources, 'app.asar');
   const asar = await import('@electron/asar');
   const metadata = JSON.parse(asar.extractFile(asarPath, 'package.json'));
-  assert.equal(metadata.visualiserMacPreview, true);
-  assert.equal(metadata.version, require('./mac-preview.cjs').extraMetadata.version);
+  if(release){assert.equal(metadata.visualiserManualMacUpdates,true);assert.equal(metadata.visualiserMacPreview,undefined);assert.equal(metadata.version,require('../package.json').version);}else{assert.equal(metadata.visualiserMacPreview,true);assert.equal(metadata.version,require('./mac-preview.cjs').extraMetadata.version);}
   for (const file of ['main.js', 'mac-automation.js', 'mac-now-playing.js', 'mac-platform.js', 'mac-platform.css', 'index.html', 'mini-player.html']) {
     assert(asar.extractFile(asarPath, file).equals(fs.readFileSync(file)), 'Packaged file differs: ' + file);
   }

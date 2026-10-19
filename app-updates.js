@@ -5,7 +5,7 @@ class UpdateService extends EventEmitter {
   constructor({ updater, version, enabled, savePreference = async () => {}, onInstall = () => {}, onInstallError = () => {}, inspectLatestVersion, disabledMessage }) {
     super();
     this.updater = updater; this.enabled = enabled; this.savePreference = savePreference;
-    this.inspectLatestVersion = inspectLatestVersion;
+    this.inspectLatestVersion = inspectLatestVersion; this.disabledMessage = disabledMessage;
     this.onInstall = onInstall; this.onInstallError = onInstallError;
     this.state = { status: enabled ? 'idle' : 'development', currentVersion: version, version: '', progress: 0, automatic: true, lastChecked: null, message: enabled ? 'Updates will be checked quietly in the background.' : disabledMessage || 'Automatic updates are available in the installed app.' };
     this.handlers = [];
@@ -39,7 +39,7 @@ class UpdateService extends EventEmitter {
         if (!/^\d+\.\d+\.\d+$/.test(latest)) throw Error('Invalid release version');
         const a = latest.split('.').map(Number), b = this.state.currentVersion.split('.').map(Number);
         const difference = a.map((value,index) => value - b[index]).find(value => value !== 0) || 0;
-        this.set({ status: 'development', version: latest, lastChecked: Date.now(), message: difference > 0 ? 'v'+latest+' is available on GitHub. Install the desktop app to receive automatic updates.' : 'You’re up to date. Automatic installation is available in the installed app.' });
+        this.set({ status: 'development', version: latest, lastChecked: Date.now(), message: this.disabledMessage ? (difference>0?'v'+latest+' is available. ': 'You’re up to date. ')+this.disabledMessage : difference > 0 ? 'v'+latest+' is available on GitHub. Install the desktop app to receive automatic updates.' : 'You’re up to date. Automatic installation is available in the installed app.' });
         return this.snapshot();
       }).catch(() => {
         this.set({ status: 'development', message: 'Couldn’t check GitHub. Check your connection and try again.' });

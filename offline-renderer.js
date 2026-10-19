@@ -1,6 +1,7 @@
 const ComplexStyles = require('./complex-styles');
 const MidiEngine = require('./midi-engine');
 const ParameterAutomation = require('./parameter-automation');
+const SceneTransitions = require('./scene-transitions');
 const { createCanvas } = require('@napi-rs/canvas');
 const FFT = require('fft.js');
 const { spawn } = require('child_process');
@@ -41,6 +42,9 @@ async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'f
   const samples = new Float32Array(pcm.buffer, pcm.byteOffset, Math.floor(pcm.length / 4));
   const totalFrames = Math.max(1, Math.ceil(samples.length / sampleRate * fps));
   const canvas = createCanvas(settings.width, settings.height), ctx = canvas.getContext('2d');
+  const transition=SceneTransitions.clean(settings.transition);
+  const transitionSource=transition?.enabled?new SceneTransitions.AudioSource(samples,sampleRate):null;
+  const transitionRenderer=transitionSource?new SceneTransitions.Renderer(transition,transitionSource,createCanvas):null;
   const fft = new FFT(fftSize), source = new Array(fftSize).fill(0), spectrum = fft.createComplexArray(), history = new Float32Array(112);
   // Sized to the top of the Density param's range (300) so every value in
   // that range has a real particle to draw, matching the live preview.
@@ -62,6 +66,15 @@ async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'f
     }
   };
   for (let frame = 0; frame < totalFrames; frame++) {
+    if(transitionRenderer){
+      const time=frame/fps;transitionRenderer.render(ctx,settings.width,settings.height,time);
+      if(settings.midi?.enabled!==false&&settings.midi?.data){
+        if(settings.midi.layer==='replace'){ctx.fillStyle=settings.background;ctx.fillRect(0,0,settings.width,settings.height);}
+        const data=transitionSource.frame(Math.floor(time*60+1e-6));
+        MidiEngine.paint(ctx,settings.width,settings.height,time,settings.midi,{style,values:data.values,params:resolvedParams.map((base,index)=>ParameterAutomation.evaluate(automation.find(t=>t.index===index),time,base,(ComplexStyles.specs[style]||ParameterAutomation.basicSpecs[style])?.[index]))});
+      }
+      const image=ctx.getImageData(0,0,settings.width,settings.height);await write(encoder.stdin,Buffer.from(image.data.buffer));reportProgress(frame);continue;
+    }
     const frameParams=resolvedParams.map((base,index)=>ParameterAutomation.evaluate(automation.find(t=>t.index===index),frame/fps,base,(ComplexStyles.specs[style]||ParameterAutomation.basicSpecs[style])?.[index]));
     const [p0,p1,p2]=frameParams;
     const centre = Math.floor(frame * sampleRate / fps), start = centre - fftSize / 2;
