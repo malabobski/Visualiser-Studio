@@ -50,7 +50,7 @@ class AudioSource{
   }
 }
 class Renderer{
-  constructor(config,source,createCanvas){this.config=clean(config);this.source=source;this.make=createCanvas;this.sections=this.config.sections||[{start:0,fade:0,look:this.config.a},{start:this.config.start,fade:this.config.duration,look:this.config.b}];const shared=new Map();this.scenes=this.sections.map((section,index)=>{const key=JSON.stringify(section.look);if(shared.has(key))return shared.get(key);const origin=index?Math.max(0,Math.floor((section.start-6)*60)):0;const scene={look:section.look,origin,canvas:createCanvas(32,18),step:origin-1,checkpoints:new Map()};shared.set(key,scene);return scene;});}
+  constructor(config,source,createCanvas,backgroundPaint){this.backgroundPaint=backgroundPaint;this.config=clean(config);this.source=source;this.make=createCanvas;this.sections=this.config.sections||[{start:0,fade:0,look:this.config.a},{start:this.config.start,fade:this.config.duration,look:this.config.b}];const shared=new Map();this.scenes=this.sections.map((section,index)=>{const key=JSON.stringify(section.look);if(shared.has(key))return shared.get(key);const origin=index?Math.max(0,Math.floor((section.start-6)*60)):0;const scene={look:section.look,origin,canvas:createCanvas(32,18),step:origin-1,checkpoints:new Map()};shared.set(key,scene);return scene;});}
   at(time){let index=0;for(let i=1;i<this.sections.length;i++){if(time>=this.sections[i].start)index=i;else break;}const s=this.sections[index],mix=index&&s.fade?progress({start:s.start,duration:s.fade},time):1;return {index,mix};}
   rewind(scene,step){let checkpoint=scene.origin-1;for(const key of scene.checkpoints.keys())if(key<step&&key>checkpoint)checkpoint=key;ComplexStyles.restore(scene.canvas.getContext('2d'),scene.checkpoints.get(checkpoint)||null);scene.step=checkpoint;}
   active(time){const {index,mix}=this.at(time);return mix<1?[this.scenes[index-1],this.scenes[index]]:[this.scenes[index]];}
@@ -73,21 +73,25 @@ class Renderer{
     const begin=stateful?scene.step+1:step;
     for(let frame=begin;frame<=step;frame++){
       const data=this.source.frame(frame),final=frame===step;
-      paint(ctx,final?w:32,final?h:18,data.values,data.energy,frame/60,scene.look,data.wave);
+      paint(ctx,final?w:32,final?h:18,data.values,data.energy,frame/60,scene.look,data.wave,!!this.backgroundPaint);
       if(stateful&&frame%120===0){scene.checkpoints.set(frame,ComplexStyles.snapshot(ctx));if(scene.checkpoints.size>32)scene.checkpoints.delete(scene.checkpoints.keys().next().value);}
     }
     scene.step=step;return canvas;
   }
+  composite(scene,step,w,h,time){
+    const visual=this.scene(scene,step,w,h);if(!this.backgroundPaint)return visual;
+    const c=scene.composite??=this.make(w,h);if(c.width!==w||c.height!==h){c.width=w;c.height=h;}const g=c.getContext('2d');g.clearRect(0,0,w,h);g.fillStyle=scene.look.background;g.fillRect(0,0,w,h);this.backgroundPaint(g,w,h,time);g.drawImage(visual,0,0,w,h);return c;
+  }
   render(ctx,w,h,time){
     const step=Math.max(0,Math.floor(time*60+1e-6)),{index,mix}=this.at(time);
     ctx.save();ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
-    if(mix<1)ctx.drawImage(this.scene(this.scenes[index-1],step,w,h),0,0,w,h);
-    if(mix>0){ctx.globalAlpha=mix;ctx.drawImage(this.scene(this.scenes[index],step,w,h),0,0,w,h);}
+    if(mix<1)ctx.drawImage(this.composite(this.scenes[index-1],step,w,h,time),0,0,w,h);
+    if(mix>0){ctx.globalAlpha=mix;ctx.drawImage(this.composite(this.scenes[index],step,w,h,time),0,0,w,h);}
     ctx.restore();return {mix,style:this.sections[mix<.5?index-1:index].look.style};
   }
 }
-function paint(ctx,w,h,values,energyAvg,time,settings,waveform){
-const style=settings.style,frameParams=settings.params.map((base,index)=>ParameterAutomation.evaluate(settings.automation.find(t=>t.index===index),time,base,specs[style]?.[index])),[p0,p1,p2]=frameParams,cx=w/2,cy=h/2,unit=Math.min(w,h);ctx.fillStyle=settings.background;ctx.fillRect(0,0,w,h);
+function paint(ctx,w,h,values,energyAvg,time,settings,waveform,transparent=false){
+const style=settings.style,frameParams=settings.params.map((base,index)=>ParameterAutomation.evaluate(settings.automation.find(t=>t.index===index),time,base,specs[style]?.[index])),[p0,p1,p2]=frameParams,cx=w/2,cy=h/2,unit=Math.min(w,h);if(transparent)ctx.clearRect(0,0,w,h);else{ctx.fillStyle=settings.background;ctx.fillRect(0,0,w,h);}
     if (ComplexStyles.paint(ctx,w,h,values,energyAvg,style,time,frameParams,settings.design||{})) {
     } else if (style === 'bars' || style === 'mirror') {
       const mirror = style === 'mirror', count = Math.max(1, Math.round(p1)), gap = w / count, heightScale = p0, gapScale = p2;

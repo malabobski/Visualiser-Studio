@@ -63,6 +63,7 @@
   function attach(slider){
     if(controls.has(slider))return;
     const initial=defaults(slider);controls.set(slider,{initial});
+    if(slider.id==='stageDesignerSeek'){slider.addEventListener('contextmenu',e=>e.preventDefault());return;}
     const context=event=>{if(['easeSeek','mediaSeek','miniSeek'].includes(slider.id)){event.preventDefault();return;}if(slider.disabled)return;AppContextMenu.open(event,[{label:'Enter value…',run:()=>open(slider,event.target)},{label:'Reset to default',run:()=>apply(slider,slider.dataset.default===undefined?initial:defaults(slider))},{label:'Copy value',run:()=>{copiedValue=Number(slider.value);}},{label:'Paste value',disabled:copiedValue===undefined,run:()=>apply(slider,copiedValue)}]);};
     slider.addEventListener('contextmenu',context);
     slider.addEventListener('dblclick',event=>{if(slider.disabled)return;event.preventDefault();event.stopPropagation();apply(slider,slider.dataset.default===undefined?initial:defaults(slider));});

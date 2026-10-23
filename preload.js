@@ -1,4 +1,29 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
+contextBridge.exposeInMainWorld('community', {
+  onReturn: callback => {
+    const listener = () => callback();
+    ipcRenderer.on('community:open', listener);
+    return () => ipcRenderer.removeListener('community:open', listener);
+  },
+  get: () => ipcRenderer.invoke('community:get'),
+  signIn: provider => ipcRenderer.invoke('community:signIn', provider),
+  cancel: () => ipcRenderer.invoke('community:cancel'),
+  refresh: () => ipcRenderer.invoke('community:refresh'),
+  signOut: () => ipcRenderer.invoke('community:signOut'),
+  saveProfile: profile => ipcRenderer.invoke('community:saveProfile', profile),
+  friends: () => ipcRenderer.invoke('community:friends'),
+  searchPeople: query => ipcRenderer.invoke('community:searchPeople', query),
+  sendRequest: username => ipcRenderer.invoke('community:sendRequest', username),
+  friendAction: request => ipcRenderer.invoke('community:friendAction', request),
+  feed: query => ipcRenderer.invoke('community:feed', query),
+  publishPost: post => ipcRenderer.invoke('community:publishPost', post),
+  deletePost: id => ipcRenderer.invoke('community:deletePost', id),
+  onChange: callback => {
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('community:state', listener);
+    return () => ipcRenderer.removeListener('community:state', listener);
+  }
+});
 contextBridge.exposeInMainWorld('exportFiles', {
   get:()=>ipcRenderer.invoke('exports:get'),
   chooseFolder:()=>ipcRenderer.invoke('exports:folder'),

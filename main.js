@@ -3,7 +3,7 @@ require('./project-files');
 // It figures out where the bundled FFmpeg lives, starts the same local server
 // your app already used, and opens a window pointed at it.
 
-const { app, BrowserWindow, screen, session, desktopCapturer, ipcMain, dialog, Menu, shell, systemPreferences } = require('electron');
+const { app, BrowserWindow, screen, session, desktopCapturer, ipcMain, dialog, Menu, shell, systemPreferences, safeStorage } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fsp = require('fs/promises');
@@ -479,6 +479,10 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  require('./community-auth').setupCommunity({ app, ipcMain, safeStorage, shell, getWindow: () => mainWindow, getOrigin: () => `http://localhost:${mainAppPort}`, onSignedIn: () => {
+    restoreFullApp();
+    require('./community-window').focusCommunityWindow({app,win:mainWindow});
+  } });
   require('./export-files').setupExportFiles({app,ipcMain,dialog,session:session.defaultSession,getWindow:()=>mainWindow,getOrigin:()=>`http://localhost:${mainAppPort}`});
   try{const saved=JSON.parse(await fsp.readFile(interfacePreferencesPath(),'utf8'));if(Number.isFinite(saved.zoom)&&saved.zoom>=75&&saved.zoom<=150&&saved.zoom%5===0)interfaceZoom=saved.zoom;}catch{}
   if(process.platform === 'darwin') {

@@ -84,6 +84,8 @@
   let render=()=>{},notify=()=>{},notificationsReady=false;
   const tracker=createTracker({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},(_state,_stored,newly)=>{render();if(notificationsReady)newly.forEach(notify);});
   root.Achievements={...tracker,diamondMessages};
+  const pendingNotifications=[];
+  root.AppNotifications={show:item=>pendingNotifications.push(item)};
   window.addEventListener('diamond-surprise',event=>tracker.recordMessage(event.detail));
   window.addEventListener('disco-unlocked',()=>tracker.unlock('disco-preset'));
   function setup(){
@@ -118,14 +120,24 @@
     const notice=document.createElement('aside');notice.id='achievementNotice';notice.className='achievement-notice';notice.setAttribute('popover','manual');notice.setAttribute('aria-label','Achievement unlocked');
     notice.innerHTML='<button id="achievementNoticeOpen" type="button"><span aria-hidden="true">✦</span><span><small>Achievement unlocked</small><strong id="achievementNoticeName" role="status"></strong></span></button><button id="achievementNoticeDismiss" type="button" aria-label="Dismiss achievement notification">×</button>';document.body.append(notice);
     let queue=[],active=null,timer;
-    function next(){clearTimeout(timer);notice.hidePopover();active=queue.shift()||null;if(!active)return;document.getElementById('achievementNoticeName').textContent=secrets.find(secret=>secret.id===active).name;notice.showPopover();timer=setTimeout(next,5500);}
-    notify=id=>{queue.push(id);if(!active)next();};
-    document.getElementById('achievementNoticeOpen').onclick=()=>{const id=active;next();open(id);};
+    function next(){
+      clearTimeout(timer);notice.hidePopover();active=queue.shift()||null;if(!active)return;
+      const copy=document.getElementById('achievementNoticeOpen');
+      copy.querySelector('span:first-child').textContent=active.symbol||'✦';
+      copy.querySelector('small').textContent=active.title;
+      document.getElementById('achievementNoticeName').textContent=active.message;
+      notice.setAttribute('aria-label',active.title);notice.showPopover();timer=setTimeout(next,active.duration||5500);
+    }
+    const enqueue=item=>{queue.push(item);if(!active)next();};
+    root.AppNotifications={show:enqueue};
+    notify=id=>enqueue({achievement:id,title:'Achievement unlocked',message:secrets.find(secret=>secret.id===id).name,symbol:'✦',onClick:()=>open(id)});
+    document.getElementById('achievementNoticeOpen').onclick=()=>{const item=active;next();item?.onClick?.();};
     document.getElementById('achievementNoticeDismiss').onclick=next;
     document.getElementById('achievementsReset').onclick=()=>{document.getElementById('achievementsResetConfirm').hidden=false;document.getElementById('achievementsResetCancel').focus();};
     document.getElementById('achievementsResetCancel').onclick=()=>{document.getElementById('achievementsResetConfirm').hidden=true;document.getElementById('achievementsReset').focus();};
-    document.getElementById('achievementsResetAccept').onclick=()=>{queue=[];active=null;clearTimeout(timer);notice.hidePopover();tracker.reset();try{localStorage.removeItem('visualiserCompletedExports');localStorage.removeItem('visualiserDiamondVisits');}catch{}window.dispatchEvent(new Event('achievements-reset'));document.getElementById('achievementsResetConfirm').hidden=true;document.getElementById('achievementsReset').focus();};
+    document.getElementById('achievementsResetAccept').onclick=()=>{queue=queue.filter(item=>!item.achievement);if(active?.achievement)next();tracker.reset();try{localStorage.removeItem('visualiserCompletedExports');localStorage.removeItem('visualiserDiamondVisits');}catch{}window.dispatchEvent(new Event('achievements-reset'));document.getElementById('achievementsResetConfirm').hidden=true;document.getElementById('achievementsReset').focus();};
     notificationsReady=true;
+    pendingNotifications.splice(0).forEach(enqueue);
     render();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup,{once:true});else setup();

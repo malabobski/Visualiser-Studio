@@ -2,7 +2,8 @@ const ComplexStyles = require('./complex-styles');
 const MidiEngine = require('./midi-engine');
 const ParameterAutomation = require('./parameter-automation');
 const SceneTransitions = require('./scene-transitions');
-const { createCanvas } = require('@napi-rs/canvas');
+const { createCanvas,loadImage } = require('@napi-rs/canvas');
+const StageComposition=require('./stage-composition');
 const FFT = require('fft.js');
 const { spawn } = require('child_process');
 
@@ -42,9 +43,10 @@ async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'f
   const samples = new Float32Array(pcm.buffer, pcm.byteOffset, Math.floor(pcm.length / 4));
   const totalFrames = Math.max(1, Math.ceil(samples.length / sampleRate * fps));
   const canvas = createCanvas(settings.width, settings.height), ctx = canvas.getContext('2d');
+  const stage=StageComposition.clean(settings.stage),stagePainter=new StageComposition.Renderer(loadImage);await stagePainter.prepare(stage);
   const transition=SceneTransitions.clean(settings.transition);
   const transitionSource=transition?.enabled?new SceneTransitions.AudioSource(samples,sampleRate):null;
-  const transitionRenderer=transitionSource?new SceneTransitions.Renderer(transition,transitionSource,createCanvas):null;
+  const transitionRenderer=transitionSource?new SceneTransitions.Renderer(transition,transitionSource,createCanvas,stage.layers.some(l=>l.plane==='behind')?(g,w,h,time)=>stagePainter.paint(g,w,h,time,stage,samples.length/sampleRate,'behind'):undefined):null;
   const fft = new FFT(fftSize), source = new Array(fftSize).fill(0), spectrum = fft.createComplexArray(), history = new Float32Array(112);
   // Sized to the top of the Density param's range (300) so every value in
   // that range has a real particle to draw, matching the live preview.
@@ -69,10 +71,11 @@ async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'f
     if(transitionRenderer){
       const time=frame/fps;transitionRenderer.render(ctx,settings.width,settings.height,time);
       if(settings.midi?.enabled!==false&&settings.midi?.data){
-        if(settings.midi.layer==='replace'){ctx.fillStyle=settings.background;ctx.fillRect(0,0,settings.width,settings.height);}
+        if(settings.midi.layer==='replace'){ctx.fillStyle=settings.background;ctx.fillRect(0,0,settings.width,settings.height);stagePainter.paint(ctx,settings.width,settings.height,frame/fps,stage,samples.length/sampleRate,'behind');}
         const data=transitionSource.frame(Math.floor(time*60+1e-6));
         MidiEngine.paint(ctx,settings.width,settings.height,time,settings.midi,{style,values:data.values,params:resolvedParams.map((base,index)=>ParameterAutomation.evaluate(automation.find(t=>t.index===index),time,base,(ComplexStyles.specs[style]||ParameterAutomation.basicSpecs[style])?.[index]))});
       }
+      stagePainter.paint(ctx,settings.width,settings.height,time,stage,samples.length/sampleRate,'front');
       const image=ctx.getImageData(0,0,settings.width,settings.height);await write(encoder.stdin,Buffer.from(image.data.buffer));reportProgress(frame);continue;
     }
     const frameParams=resolvedParams.map((base,index)=>ParameterAutomation.evaluate(automation.find(t=>t.index===index),frame/fps,base,(ComplexStyles.specs[style]||ParameterAutomation.basicSpecs[style])?.[index]));
@@ -90,7 +93,7 @@ async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'f
       values[band] = clamp(base + transient); history[band] = history[band] * .7 + base * .3; energy += values[band];
     }
     const w = settings.width, h = settings.height, cx = w / 2, cy = h / 2, unit = Math.min(w, h), energyAvg = energy / values.length;
-    ctx.fillStyle = settings.background; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = settings.background; ctx.fillRect(0, 0, w, h);stagePainter.paint(ctx,w,h,frame/fps,stage,samples.length/sampleRate,'behind');
 
     if (ComplexStyles.paint(ctx,w,h,values,energyAvg,style,frame/fps,frameParams,settings.design||{})) {
     } else if (style === 'bars' || style === 'mirror') {
@@ -221,6 +224,7 @@ async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'f
     }
 
     if(settings.midi?.enabled!==false&&settings.midi?.data){if(settings.midi.layer==='replace'){ctx.fillStyle=settings.background;ctx.fillRect(0,0,settings.width,settings.height);}MidiEngine.paint(ctx,settings.width,settings.height,frame/fps,settings.midi,{style,values,params:frameParams});}
+    stagePainter.paint(ctx,settings.width,settings.height,frame/fps,stage,samples.length/sampleRate,'front');
     const image = ctx.getImageData(0, 0, settings.width, settings.height); await write(encoder.stdin, Buffer.from(image.data.buffer));
     reportProgress(frame);
   }

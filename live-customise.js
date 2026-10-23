@@ -104,8 +104,9 @@
   window.liveCustomise={
     templateChanged(){liveLook={...defaults(),...liveLook};liveLook.low=liveLook.rangeLow??liveLook.low;liveLook.high=liveLook.rangeHigh??liveLook.high;persist();render();},
     mediaChanged(data){
-      if(!data)return;
+      if(!data){window.ArtistMemory?.mediaChanged(null);return;}
       const key=[data.sourceAppId,data.title,data.artist].join('|');if(key===song)return;song=key;
+      if(window.ArtistMemory?.mediaChanged(data))return;
       if($('liveRandomSong').checked){
         const styles=Object.keys(styleParameters).filter(s=>s!==liveLook.style&&(appSettings.advanced||!ComplexStyles.names[s]));liveLook.style=styles[Math.floor(Math.random()*styles.length)];
         liveLook.params=styleParameters[liveLook.style].map(p=>Number((p[1]+Math.round(Math.random()*(p[2]-p[1])/p[4])*p[4]).toFixed(3)));

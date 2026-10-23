@@ -84,13 +84,13 @@
     async exportToken(){const value=await this.exportConfig();if(!value)return '';const response=await fetch('/render-transition',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});if(!response.ok)throw Error('Could not prepare the style fade for export.');return (await response.json()).token;},
     paint(){
       if(!config?.enabled||!source||sourceFile!==loadedFile||document.querySelector('main').hidden)return false;
-      renderer??=new SceneTransitions.Renderer(config,source,(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;});
+      renderer??=new SceneTransitions.Renderer(config,source,(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;},(g,w,h,time)=>window.StageDesigner?.paintBehind(g,w,h,time));
       if(warming||renderer.work(audio.currentTime,canvas.width,canvas.height)>60){
         if(!warming){const instance=renderer,time=audio.currentTime;$('transitionStatus').textContent='Warming the scenes for this position…';const job=instance.prepare(time,canvas.width,canvas.height,()=>renderer===instance&&Math.abs(audio.currentTime-time)<10).catch(error=>{$('transitionStatus').textContent=error.message;}).finally(()=>{if(warming===job){warming=null;if(renderer===instance)render();}});warming=job;}
         return true;
       }
       renderer.render(ctx,canvas.width,canvas.height,audio.currentTime);
-      const midi=window.MidiImport?.getState();if(midi?.enabled!==false&&midi?.data){if(midi.layer==='replace'){ctx.fillStyle=$('background').value;ctx.fillRect(0,0,canvas.width,canvas.height);}const frame=source.frame(Math.floor(audio.currentTime*60+1e-6));MidiEngine.paint(ctx,canvas.width,canvas.height,audio.currentTime,midi,{style:$('style').value,values:frame.values,params:valueForAll($('style').value)});}
+      const midi=window.MidiImport?.getState();if(midi?.enabled!==false&&midi?.data){if(midi.layer==='replace'){ctx.fillStyle=$('background').value;ctx.fillRect(0,0,canvas.width,canvas.height);window.StageDesigner?.paintBehind(ctx,canvas.width,canvas.height,audio.currentTime);}const frame=source.frame(Math.floor(audio.currentTime*60+1e-6));MidiEngine.paint(ctx,canvas.width,canvas.height,audio.currentTime,midi,{style:$('style').value,values:frame.values,params:valueForAll($('style').value)});}
       return true;
     }
   };

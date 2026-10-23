@@ -32,6 +32,7 @@
       if(desktopMedia)return {details:desktopMedia.playbackStatus==='Playing'?`Listening on ${mediaSourceName(desktopMedia)}`:`Media paused · ${mediaSourceName(desktopMedia)}`,state:track};
       return {details:'Checking Now Playing',state:'Waiting for media'};
     }
+    if(visible('screen-community'))return {details:'Visiting Community',state:'Visualiser Studio'};
     if(visible('screen-templates'))return {details:'Browsing visualiser templates',state:`${loadTemplates().length} saved templates`};
     if(visible('screen-batch'))return {details:'Exploring Batch Export',state:'Visualiser Studio'};
     if(loadedFile)return {details:audio.paused?'Editing a visualiser':'Previewing a visualiser',state:`${$('title').textContent} · ${$('styleName').textContent}`};

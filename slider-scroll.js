@@ -43,7 +43,7 @@
   window.addEventListener('blur',event=>{const state=animated.get(event.target);if(state)finish(event.target,state);},true);
   window.addEventListener('wheel', event => {
     const slider = event.target.closest?.('input[type="range"]');
-    if (!slider || slider.disabled || event.deltaY === 0) return;
+    if (!slider || slider.disabled || slider.id==='stageDesignerSeek' || event.deltaY === 0) return;
     event.preventDefault(); event.stopImmediatePropagation();
     const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 400 : 1);
     const now = performance.now(), direction = Math.sign(pixels);
