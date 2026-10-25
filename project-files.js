@@ -1,8 +1,17 @@
-const {app,ipcMain}=require('electron');
+const {app,ipcMain,shell}=require('electron');
 const fs=require('fs/promises'),path=require('path'),{randomUUID}=require('crypto');
 const root=()=>path.join(app.getPath('userData'),'projects');
 const folder=id=>{if(!/^[a-zA-Z0-9-]{1,80}$/.test(id||''))throw Error('Invalid project.');return path.join(root(),id);};
 async function read(id){return JSON.parse(await fs.readFile(path.join(folder(id),'project.json'),'utf8'));}
+ipcMain.handle('projects:delete',async(_event,id)=>{
+  // Only move the app-owned project folder; referenced audio stays untouched.
+  const target=path.resolve(folder(id)),base=path.resolve(root());
+  if(path.dirname(target)!==base)throw Error('Invalid project.');
+  await read(id);
+  if((await fs.lstat(target)).isSymbolicLink())throw Error('Invalid project folder.');
+  await shell.trashItem(target);
+  return {id};
+});
 async function write(project){const dir=folder(project.id);await fs.mkdir(dir,{recursive:true});await fs.writeFile(path.join(dir,'project.tmp'),JSON.stringify(project));try{await fs.rename(path.join(dir,'project.tmp'),path.join(dir,'project.json'));}catch(error){if(!['EPERM','EACCES'].includes(error.code))throw error;await fs.copyFile(path.join(dir,'project.tmp'),path.join(dir,'project.json'));await fs.rm(path.join(dir,'project.tmp'),{force:true});}}
 ipcMain.handle('projects:list',async()=>{await fs.mkdir(root(),{recursive:true});const ids=await fs.readdir(root());const results=await Promise.all(ids.map(async id=>{try{const p=await read(id);return {id:p.id,name:p.name,createdAt:p.createdAt,updatedAt:p.updatedAt,thumbnail:p.thumbnail,audioName:p.audioName};}catch{return null;}}));return results.filter(Boolean).sort((a,b)=>b.updatedAt-a.updatedAt);});
 ipcMain.handle('projects:save',async(_event,data)=>{

@@ -16,6 +16,6 @@
 .mini-card{grid-template-rows:72px auto auto auto;row-gap:10px}
 body.portrait .mini-card{grid-template-rows:minmax(0,1fr) auto auto auto auto}body.portrait .mini-volume-row{grid-column:1;grid-row:5}
 .mini-options-menu{max-height:calc(100vh - 75px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#859bc6 transparent}
-@media(max-height:260px){body:not(.portrait) .mini-card{grid-template-rows:60px auto auto auto;padding:12px 18px;row-gap:6px}body:not(.portrait) .mini-art{width:60px;height:60px}body:not(.portrait) .mini-meta{gap:3px}}
+@media(max-height:260px){body:not(.portrait) .mini-card{grid-template-columns:60px minmax(0,1fr);grid-template-rows:60px auto auto auto;padding:12px 18px;row-gap:6px}body:not(.portrait) .mini-art{width:60px;height:60px}body:not(.portrait) .mini-meta{gap:3px}}
 .media-volume-row input:focus-visible,#mediaOptions summary:focus-visible{outline:2px solid #b5a0e1;outline-offset:3px}
 @media(prefers-reduced-motion:reduce){#mediaOptions::details-content{transition:none}}body.reduce-motion #mediaOptions::details-content{transition:none}

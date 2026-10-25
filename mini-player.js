@@ -38,6 +38,10 @@
   $('miniOptions').addEventListener('keydown',event=>{if([' ', 'Enter'].includes(event.key))event.stopPropagation();});
   const finish=event=>{if(!drag || event.pointerId!==drag.id)return;const old=drag;drag=null;cancelAnimationFrame(resizeFrame);old.button.classList.remove('resizing');if(old.button.hasPointerCapture(old.id))old.button.releasePointerCapture(old.id);};
   const settingsMenu=document.querySelector('.mini-options-menu');settingsMenu.setAttribute('popover','manual');
+  const settingsHeading=document.createElement('div');settingsHeading.className='mini-settings-heading';settingsHeading.innerHTML='<strong>Player settings</strong><button type="button" aria-label="Close settings">×</button>';settingsHeading.querySelector('button').onclick=()=>{$('miniOptions').open=false;};
+  const settingsBody=document.createElement('div');settingsBody.className='mini-settings-body';
+  settingsBody.append(settingsMenu.querySelector('.mini-volume-target'),$('miniVolumeHint'),$('miniOpacity').closest('label'));
+  const settingsActions=document.createElement('div');settingsActions.className='mini-settings-actions';settingsActions.append($('miniFull'),$('miniQuit'));settingsMenu.append(settingsHeading,settingsBody,settingsActions);
   $('miniOptions').addEventListener('toggle',()=>{const open=$('miniOptions').open;document.body.classList.toggle('mini-settings-open',open);if(open){if(drag)finish({pointerId:drag.id});settingsMenu.showPopover();}else settingsMenu.hidePopover();});
   document.querySelectorAll('.resize-arc').forEach(button=>{
     button.addEventListener('pointerdown',async event=>{

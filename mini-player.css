@@ -25,3 +25,13 @@ body.mini-settings-open .resize-arc{pointer-events:none;opacity:0}
 .mini-options-menu[popover]{inset:16px 54px auto auto;margin:0;width:min(300px,calc(100vw - 76px));max-height:calc(100dvh - 32px)}
 .mini-options-menu[popover]:not(:popover-open){display:none}
 body.mini-settings-open .mini-card,body.mini-settings-open .mini-card *{-webkit-app-region:no-drag;app-region:no-drag}
+
+/* Align the metadata with the artwork and keep compact settings self-contained. */
+.mini-meta{text-align:left;justify-items:stretch;align-self:center;padding-right:26px;gap:3px}.mini-meta strong{line-height:1.25}.mini-meta>span,.mini-meta small{line-height:1.4}.mini-transport button{display:inline-flex;align-items:center;justify-content:center;line-height:1}
+.mini-options-menu[popover]{inset:16px 16px auto auto;width:min(400px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:12px;gap:10px;background:#202737;overflow:hidden;grid-template-rows:auto minmax(0,1fr) auto;box-shadow:0 10px 28px #03071090;animation:miniSettingsIn .18s ease-out}
+.mini-settings-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:#edf0ff}.mini-settings-heading button{display:grid;place-items:center;min-height:24px;width:24px;height:24px;padding:0;background:#ffffff0b;font-size:17px}
+.mini-settings-body{overflow:auto;min-height:0;display:grid;gap:10px;padding:1px 2px;scrollbar-width:thin;scrollbar-color:#859bc6 transparent}.mini-settings-body label{margin:0!important}.mini-settings-body small{margin:0!important}
+.mini-settings-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:8px;border-top:1px solid #ffffff12}.mini-settings-actions button{min-height:32px;padding:7px 10px;text-align:center}
+@media(max-height:300px){.mini-options-menu[popover]{gap:8px}.mini-settings-body{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);column-gap:14px;align-items:center}.mini-settings-body .mini-volume-target{grid-column:1;grid-row:1}.mini-settings-body label:has(#miniOpacity){grid-column:2;grid-row:1;align-self:center}.mini-settings-body #miniVolumeHint{grid-column:1/-1;font-size:9px;line-height:1.3}.mini-settings-body select{min-height:30px;padding:5px 7px}.mini-settings-actions{padding-top:6px}}
+@keyframes miniSettingsIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.mini-options-menu[popover]{animation:none}}

@@ -48,6 +48,10 @@
     ['sleep','Sleepy pixels','Let a song rest for a little while.'],
     ['credits','Behind the pixels','A little version of the story has a longer one behind it.'],
     ['returning','You again?','Familiar faces are remembered, every so often.'],
+    ['social-friend','Better together','A familiar name could become a new friend.'],
+    ['social-post','A voice in the crowd','Say a little something to your people.'],
+    ['social-template','Pass the colours','A saved look might brighten someone else’s day.'],
+    ['social-message','Just between us','Some conversations only need two people.'],
     ['hundred-exports','A hundred little worlds','Keep turning your ideas into something you can take away.']
   ].map(([id,name,hint])=>({id,name,hint}));
   const messageSecrets = {
@@ -85,7 +89,7 @@
   const tracker=createTracker({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},(_state,_stored,newly)=>{render();if(notificationsReady)newly.forEach(notify);});
   root.Achievements={...tracker,diamondMessages};
   const pendingNotifications=[];
-  root.AppNotifications={show:item=>pendingNotifications.push(item)};
+  root.AppNotifications=root.AppNotifications||{show:item=>pendingNotifications.push(item),clear:group=>{for(let i=pendingNotifications.length-1;i>=0;i--)if(pendingNotifications[i].group===group)pendingNotifications.splice(i,1);}};
   window.addEventListener('diamond-surprise',event=>tracker.recordMessage(event.detail));
   window.addEventListener('disco-unlocked',()=>tracker.unlock('disco-preset'));
   function setup(){
@@ -99,7 +103,7 @@
       const card=document.createElement('button');card.type='button';card.className='achievement-card';card.dataset.achievement=secret.id;
       card.setAttribute('aria-describedby','achievement-hint-'+secret.id);
       card.innerHTML='<span class="achievement-symbol" aria-hidden="true">◇</span><span class="achievement-copy"><strong></strong><span class="achievement-status"></span></span><span class="achievement-progress"></span><span class="achievement-hint" role="tooltip"></span>';
-      card.querySelector('strong').textContent=secret.name;const hint=card.querySelector('.achievement-hint');hint.id='achievement-hint-'+secret.id;hint.textContent=secret.hint;
+      card.querySelector('strong').textContent=secret.name;const hint=card.querySelector('.achievement-hint');hint.id='achievement-hint-'+secret.id;hint.textContent=secret.hint;hint.hidden=true;card.dataset.hint=secret.hint;
       card.onfocus=()=>card.classList.add('hint-visible');card.onblur=()=>card.classList.remove('hint-visible');
       card.onclick=()=>card.classList.add('hint-visible');cards.set(secret.id,card);list.append(card);
     }
@@ -117,27 +121,12 @@
     dialog.addEventListener('click',event=>{const rect=dialog.getBoundingClientRect();if(event.target===dialog&&(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom))dialog.close();});
     // Restore discoveries that older builds recorded as durable evidence.
     if(tracker.firstUse)try{if(loadTemplates().some(t=>t.id==='secret-disco'))tracker.unlock('disco-preset');if(Number(localStorage.getItem('visualiserCompletedExports'))>=100)tracker.unlock('hundred-exports');}catch{}
-    const notice=document.createElement('aside');notice.id='achievementNotice';notice.className='achievement-notice';notice.setAttribute('popover','manual');notice.setAttribute('aria-label','Achievement unlocked');
-    notice.innerHTML='<button id="achievementNoticeOpen" type="button"><span aria-hidden="true">✦</span><span><small>Achievement unlocked</small><strong id="achievementNoticeName" role="status"></strong></span></button><button id="achievementNoticeDismiss" type="button" aria-label="Dismiss achievement notification">×</button>';document.body.append(notice);
-    let queue=[],active=null,timer;
-    function next(){
-      clearTimeout(timer);notice.hidePopover();active=queue.shift()||null;if(!active)return;
-      const copy=document.getElementById('achievementNoticeOpen');
-      copy.querySelector('span:first-child').textContent=active.symbol||'✦';
-      copy.querySelector('small').textContent=active.title;
-      document.getElementById('achievementNoticeName').textContent=active.message;
-      notice.setAttribute('aria-label',active.title);notice.showPopover();timer=setTimeout(next,active.duration||5500);
-    }
-    const enqueue=item=>{queue.push(item);if(!active)next();};
-    root.AppNotifications={show:enqueue};
-    notify=id=>enqueue({achievement:id,title:'Achievement unlocked',message:secrets.find(secret=>secret.id===id).name,symbol:'✦',onClick:()=>open(id)});
-    document.getElementById('achievementNoticeOpen').onclick=()=>{const item=active;next();item?.onClick?.();};
-    document.getElementById('achievementNoticeDismiss').onclick=next;
+    notify=id=>root.AppNotifications.show({achievement:id,title:'Achievement unlocked',message:secrets.find(secret=>secret.id===id).name,symbol:'✦',onClick:()=>open(id)});
     document.getElementById('achievementsReset').onclick=()=>{document.getElementById('achievementsResetConfirm').hidden=false;document.getElementById('achievementsResetCancel').focus();};
     document.getElementById('achievementsResetCancel').onclick=()=>{document.getElementById('achievementsResetConfirm').hidden=true;document.getElementById('achievementsReset').focus();};
-    document.getElementById('achievementsResetAccept').onclick=()=>{queue=queue.filter(item=>!item.achievement);if(active?.achievement)next();tracker.reset();try{localStorage.removeItem('visualiserCompletedExports');localStorage.removeItem('visualiserDiamondVisits');}catch{}window.dispatchEvent(new Event('achievements-reset'));document.getElementById('achievementsResetConfirm').hidden=true;document.getElementById('achievementsReset').focus();};
+    document.getElementById('achievementsResetAccept').onclick=()=>{root.AppNotifications.clearAchievements?.();tracker.reset();try{localStorage.removeItem('visualiserCompletedExports');localStorage.removeItem('visualiserDiamondVisits');}catch{}window.dispatchEvent(new Event('achievements-reset'));document.getElementById('achievementsResetConfirm').hidden=true;document.getElementById('achievementsReset').focus();};
     notificationsReady=true;
-    pendingNotifications.splice(0).forEach(enqueue);
+    pendingNotifications.splice(0).forEach(item=>root.AppNotifications.show(item));
     render();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup,{once:true});else setup();

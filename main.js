@@ -435,6 +435,7 @@ async function createWindow() {
     webPreferences: {
       contextIsolation: true,
       backgroundThrottling: false,
+      autoplayPolicy: 'no-user-gesture-required',
       preload: path.join(__dirname, 'preload.js'),
     },
   });

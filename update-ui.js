@@ -10,14 +10,10 @@
   const group=document.createElement('details');group.className='settings-group';group.id='settingsUpdates';
   group.innerHTML='<summary>Updates</summary><div class="settings-row"><label class="settings-toggle"><input id="automaticUpdates" type="checkbox" checked><span>Automatic updates</span></label><small>Check and download quietly. You choose when to restart.</small></div><div class="update-settings-status"><strong id="updateInstalledVersion"></strong><p id="updateStatus" role="status"></p><progress id="updateProgress" max="100" value="0" aria-label="Update download progress" hidden></progress><div class="update-settings-actions"><button id="updateCheck" type="button" class="menu-default">Check for updates</button><button id="updateRestart" type="button" class="menu-default" hidden>Restart to install</button></div></div>';
   document.querySelector('.settings-footer').before(group);
-  const notice=document.createElement('aside');notice.id='updateNotice';notice.className='update-notice';notice.hidden=true;notice.setAttribute('aria-label','App update');
-  notice.innerHTML='<div><strong>A fresh version is ready</strong><span id="updateNoticeVersion"></span></div><button id="updateNoticeRestart" type="button">Restart to install</button><button id="updateNoticeLater" type="button" aria-label="Remind me later">×</button>';
-  document.body.append(notice);
   const dialog=document.createElement('dialog');dialog.id='updateRestartDialog';dialog.className='record-dialog update-restart-dialog';dialog.setAttribute('aria-labelledby','updateRestartTitle');
   dialog.innerHTML='<div class="record-heading"><div><p class="eyebrow">UPDATE READY</p><h2 id="updateRestartTitle">A fresh start?</h2></div></div><p id="updateRestartMessage"></p><div class="update-restart-actions"><button id="updateCancelRestart" type="button" autofocus>Later</button><button id="updateDiscardRestart" type="button">Restart without saving</button><button id="updateSaveRestart" type="button">Save & restart</button></div>';
   document.body.append(dialog);
-  let state={status:'development',currentVersion:'',automatic:true,message:'Updates are available in the desktop app.'},restartBusy=false,dirtyProject=false,dirtyTemplate=false,dismissed='';
-  try{dismissed=localStorage.getItem('visualiserDismissedUpdate')||'';}catch{}
+  let state={status:'development',currentVersion:'',automatic:true,message:'Updates are available in the desktop app.'},restartBusy=false,dirtyProject=false,dirtyTemplate=false,notifiedVersion='';
   const blockReason=()=>restartBlockReason({exporting,recording:window.getLiveRecordingActivity?.().state,saving:window.Projects?.isBusy()});
   function render(next){
     if(next)state=next;
@@ -29,9 +25,7 @@
     $('updateCheck').disabled=['checking','downloading','installing'].includes(state.status);
     $('updateCheck').textContent=state.status==='checking'?'Checking…':'Check for updates';
     $('updateRestart').hidden=state.status!=='ready';$('updateRestart').disabled=restartBusy;
-    const ready=state.status==='ready'&&dismissed!==state.version;
-    notice.hidden=!ready;$('updateNoticeVersion').textContent='v'+state.version+' · Install whenever it suits you.';
-    $('updateNoticeRestart').disabled=restartBusy;
+    if(state.status==='ready'&&state.version&&notifiedVersion!==state.version){notifiedVersion=state.version;root.AppNotifications?.show({key:'update-ready',group:'updates',title:'Update ready',message:'v'+state.version+' has downloaded. Click to choose when to restart.',symbol:'↓',duration:10000,onClick:requestRestart});}
   }
   async function requestRestart(){
     if(restartBusy||state.status!=='ready')return;
@@ -53,7 +47,7 @@
       if(save){
         dialog.close();
         if(dirtyProject){if(!await window.Projects.saveAndWait())return;}
-        else if(dirtyTemplate){saveCurrentAsTemplate();if(!loadTemplates().some(t=>t.id===activeTemplateId)){showToast('Your template could not be saved. The update can wait.');return;}}
+        else if(dirtyTemplate){const saved=await saveCurrentAsTemplate();if(!saved||!loadTemplates().some(t=>t.id===activeTemplateId)){showToast('Your template could not be saved. The update can wait.');return;}}
       }
       const afterSave=blockReason();if(afterSave){showToast(afterSave);return;}
       const result=await bridge.install();
@@ -64,8 +58,7 @@
   }
   $('updateCheck').onclick=async()=>{if(!bridge){showToast('Open the desktop app to check for updates.');return;}try{render(await bridge.check());}catch{showToast('Couldn’t check for updates. Try again.');}};
   $('automaticUpdates').onchange=async()=>{const value=$('automaticUpdates').checked;try{render(await bridge.setAutomatic(value));}catch{render();showToast('Could not save your update preference.');}};
-  $('updateRestart').onclick=requestRestart;$('updateNoticeRestart').onclick=requestRestart;
-  $('updateNoticeLater').onclick=()=>{dismissed=state.version;try{localStorage.setItem('visualiserDismissedUpdate',dismissed);}catch{}render();};
+  $('updateRestart').onclick=requestRestart;
   $('updateCancelRestart').onclick=()=>dialog.close();$('updateDiscardRestart').onclick=()=>restart(false);$('updateSaveRestart').onclick=()=>restart(true);
   bridge?.onChange(render);render();bridge?.get().then(render).catch(()=>{});
 })(typeof window==='undefined'?globalThis:window);

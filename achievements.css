@@ -18,14 +18,8 @@
 .achievements-footer{display:flex;align-items:center;justify-content:space-between;gap:12px}.achievements-footer p{margin:0}
 #achievementsDialog #achievementsReset{font:10px var(--control-font);padding:8px 10px;min-height:32px;background:transparent;color:#aebbd1;border-color:#ffffff18}
 .achievements-reset-confirm{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;border:1px solid #ffffff20;border-radius:12px;background:#ffffff04;color:#b8c3d7;font:11px/1.5 var(--control-font);flex-shrink:0}.achievements-reset-confirm[hidden]{display:none}.achievements-reset-confirm>span{flex:1;min-width:180px}
-.achievement-notice{position:fixed;inset:auto 24px 24px auto;margin:0;padding:0;width:min(360px,calc(100vw - 48px));border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);border-radius:16px;background:#202739f2;color:#e5eaf4;box-shadow:0 14px 40px #03061060;backdrop-filter:blur(16px);opacity:0;transform:translateY(8px);transition:opacity .22s,transform .22s,display .22s allow-discrete,overlay .22s allow-discrete}
-.achievement-notice:popover-open{display:flex;align-items:center;opacity:1;transform:translateY(0)}
-#achievementNoticeOpen{display:flex;align-items:center;gap:13px;flex:1;min-width:0;padding:16px;text-align:left;border:0;border-radius:16px;background:transparent;color:inherit;cursor:pointer}
-#achievementNoticeOpen>span:first-child{color:var(--accent);font-size:25px}#achievementNoticeOpen>span:last-child{display:grid;gap:5px}#achievementNoticeOpen small{font:10px var(--control-font);color:#a6b2c9}#achievementNoticeOpen strong{font:500 12px var(--control-font)}
-#achievementNoticeOpen:hover{background:#ffffff06}#achievementNoticeDismiss{padding:10px 14px;background:transparent;border:0;color:#a9b4ca;font-size:18px;cursor:pointer}
-@starting-style{.achievement-notice:popover-open{opacity:0;transform:translateY(8px)}}
-body.reduce-motion .achievement-notice{transition:none}
-@media(prefers-reduced-motion:reduce){.achievement-notice{transition:none}}
 @media(max-width:580px){.achievements-list{grid-template-columns:1fr}.achievements-dialog{padding:20px;max-height:calc(100dvh - 32px)}}
 body.reduce-motion .achievements-dialog,body.reduce-motion #achievementsDialog .achievement-card,body.reduce-motion .achievement-hint{transition:none}
 @media(prefers-reduced-motion:reduce){.achievements-dialog,#achievementsDialog .achievement-card,.achievement-hint{transition:none}}
+
+.achievement-hint[hidden]{display:none}

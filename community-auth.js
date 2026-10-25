@@ -43,7 +43,7 @@ function setupCommunity({ app, ipcMain, safeStorage, shell, getWindow, getOrigin
   const storage = encryptedStorage(path.join(app.getPath('userData'), 'community-session.bin'), safeStorage);
   const client = clientFactory(config.url, config.publishableKey, { global: { fetch: (url, options = {}) => fetcher(url, { ...options, signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) }) }, auth: { flowType: 'pkce', storage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
   let user = null, profile = null, pending = null, message = '', ready;
-  const state = () => ({ signedIn: !!user, profile, waiting: !!pending, message, remembersSignIn: storage.persistent() });
+  const state = () => ({ signedIn: !!user, accountId:user?.id||null, profile, waiting: !!pending, message, remembersSignIn: storage.persistent() });
   const emit = () => { const win = getWindow(); if (win && !win.isDestroyed()) win.webContents.send('community:state', state()); };
   function profileError(error) {
     if (error.code === 'PGRST202') return 'Profile creation needs the new feed database setup file.';
@@ -117,12 +117,16 @@ function setupCommunity({ app, ipcMain, safeStorage, shell, getWindow, getOrigin
   const handlers = {
     ...require('./community-friends').friendHandlers(client, () => user),
     ...require('./community-feed').feedHandlers(client, () => user),
+    ...require('./community-admin').adminHandlers(client, () => user),
+    ...require('./community-messages').socialHandlers(client, () => user, require('./community-messages').messageStore(path.join(app.getPath('userData'),'community-messages'),safeStorage)),
     get: async () => state(),
     signIn,
     cancel: async () => { cancel(); message = ''; emit(); return state(); },
     refresh: async () => { message = ''; await loadProfile(); emit(); return state(); },
     signOut: async () => {
       cancel();
+      // Expire the current description immediately; the opt-in preference stays.
+      await client.rpc('community_social_settings').then(async ({data})=>{if(data===true)await client.rpc('community_set_activity',{shared:true,description:''});}).catch(()=>{});
       const { error } = await client.auth.signOut({ scope: 'local' });
       if (error) throw new Error('Couldn’t sign out. Check your connection and try again.');
       user = null; profile = null; message = ''; emit(); return state();
@@ -143,7 +147,7 @@ function setupCommunity({ app, ipcMain, safeStorage, shell, getWindow, getOrigin
     catch { return { error: 'Unavailable here.' }; }
     await ready;
     // Background reads must not dim or block foreground profile/friend actions.
-    if (action === 'friends' || action === 'feed') {
+    if (['friends','feed','announcements','person','socialSettings','friendActivity','dmInbox','adminStatus','badges','notifications'].includes(action)) {
       const account = user?.id;
       try {
         const result = await handler(input);

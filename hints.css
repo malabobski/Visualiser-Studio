@@ -1,0 +1,4 @@
+.hint-tip[popover]{position:fixed;inset:auto;margin:0;z-index:99999;width:max-content;max-width:min(360px,calc(100vw - 16px));box-sizing:border-box;white-space:normal;overflow-wrap:anywhere;text-align:center;padding:5px 9px;border:1px solid #ffffff12;border-radius:7px;background:#202737f5;color:#e9ecf5;font:11px/1.5 'Space Grotesk',sans-serif;box-shadow:0 8px 22px #03071050;pointer-events:none;transform:none;opacity:0;transition:opacity .15s ease;user-select:none}
+.hint-tip[popover].visible{opacity:1;transform:none}.hint-tip[popover]:not(:popover-open){display:none}
+.mini-transport button:hover:enabled::after{display:none}
+body.reduce-motion .hint-tip[popover]{transition:none}@media(prefers-reduced-motion:reduce){.hint-tip[popover]{transition:none}}

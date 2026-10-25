@@ -2,6 +2,12 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {createTracker,diamondMessages,secrets,key}=require('../achievements');
 function storage(initial){let value=initial;return {getItem:()=>value,setItem:(name,next)=>{assert.equal(name,key);value=next;}};}
+test('social discoveries persist independently and notify once per achievement',()=>{
+  const disk=storage(),notices=[],tracker=createTracker(disk,(_state,_stored,newly)=>notices.push(...newly));
+  const social=['social-friend','social-post','social-template','social-message'];
+  for(const id of social){assert(tracker.unlock(id));assert(!tracker.unlock(id));}
+  assert.deepEqual(notices,social);assert.deepEqual(createTracker(disk).snapshot().unlocked,social);
+});
 test('diamond progress counts unique known messages, persists, and completes only the full collection',()=>{
   const disk=storage();const first=createTracker(disk);
   first.recordMessage(diamondMessages[0]);first.recordMessage(diamondMessages[0]);first.recordMessage('not a diamond message');

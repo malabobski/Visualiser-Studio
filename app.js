@@ -472,7 +472,7 @@ $('export').onclick=async()=>{if(exporting||!loadedFile)return;exporting=true;$(
 // Hover hints: a single tooltip element attached to the end of <body>, so it
 // floats above every panel and never gets clipped by a scrolling or
 // overflow-hidden container (the stage, the presets panel, etc).
-(()=>{const tip=document.createElement('div');tip.className='hint-tip';document.body.appendChild(tip);document.addEventListener('fullscreenchange',()=>{(document.fullscreenElement||document.body).appendChild(tip);tip.classList.remove('visible');current=null;});let current=null;const position=(el)=>{tip.style.left='0px';const rect=el.getBoundingClientRect(),bounds=tip.getBoundingClientRect(),margin=8,half=bounds.width/2;const centre=Math.max(margin+half,Math.min(window.innerWidth-margin-half,rect.left+rect.width/2));tip.style.left=`${Math.round(centre)}px`;tip.style.top=`${Math.round(rect.top<bounds.height+18?rect.bottom+bounds.height+20:rect.top)}px`;};document.addEventListener('pointerover',(event)=>{const el=event.target.closest('[data-hint]');if(!el||el===current)return;current=el;tip.textContent=el.dataset.hint;position(el);tip.classList.add('visible');});document.addEventListener('pointerout',(event)=>{const el=event.target.closest('[data-hint]');if(!el||el!==current)return;tip.classList.remove('visible');current=null;});window.addEventListener('scroll',()=>{if(current)position(current);},true);})();
+
 // Fullscreen auto-hide: while in fullscreen, hide the overlay controls (and
 // the cursor) after 2 seconds of no mouse/keyboard activity. Any movement
 // or key press brings them straight back.
@@ -624,6 +624,7 @@ let pendingTemplateSwitchId=null;
 // Small non-blocking confirmation for save/rename/delete/switch actions.
 let toastTimer=null;
 function showToast(message,{onClick,duration=2400}={}){
+  if(window.AppNotifications){window.AppNotifications.show({key:'toast',title:'Visualiser Studio',message,onClick,duration});return;}
   let toast=document.getElementById('appToast');
   if(!toast){
     toast=document.createElement('div');
@@ -784,15 +785,18 @@ document.addEventListener('keydown',(event)=>{
   if(!$('templateSwitchDialog').hidden){closeTemplateSwitchDialog();return;}
 });
 
-function saveCurrentAsTemplate(){
+async function saveCurrentAsTemplate(){
   const look=captureCurrentLook();delete look.midi;
-  const t={id:makeTemplateId(),name:nextTemplateName(),...look};
+  const name=await window.TemplateNames.ask('My template');if(!name)return false;
+  const t={id:makeTemplateId(),name,...look};
   const list=loadTemplates();
   list.push(t);
   saveTemplatesList(list);
+  if(!loadTemplates().some(item=>item.id===t.id)){showToast('Couldn’t save the template. Check your local storage.');return false;}
   setActiveTemplate(t);
   renderTemplatesScreen();
   showToast(`Saved as "${t.name}"`);
+  return true;
 }
 
 function renameTemplate(id,name){
@@ -888,6 +892,13 @@ function renderTemplatesScreen(){
     const card=document.createElement('div');
     card.className='template-card'+(t.id===activeTemplateId?' is-active':'');
     card.dataset.templateId=t.id;
+    card.addEventListener('contextmenu',event=>AppContextMenu.open(event,[
+      {label:'Use template',run:()=>requestUseTemplate(t.id)},
+      {label:'Rename',run:()=>{nameInput.focus();nameInput.select();}},
+      {label:'Duplicate',run:()=>duplicateTemplate(t.id)},
+      {label:appSettings.startupTemplateId===t.id?'Remove startup preset':'Load on startup',run:()=>toggleStartupPreset(t.id)},
+      {label:'Delete template…',run:()=>requestDeleteTemplate(t.id)}
+    ]));
 
     // The thumbnail lives inside its own button (like the style-cards) so
     // it's properly clickable/keyboard-focusable without nesting the name

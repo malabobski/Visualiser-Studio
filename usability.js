@@ -242,8 +242,8 @@
 
   const commands = [
     ['Open audio', 'Ctrl+Shift+O', () => { nav('create'); $('file').click(); }],
-    ['Open mini player', '', () => window.miniPlayer?.open()],
-    ['Go to Create', 'Alt+1', () => nav('create')], ['Go to Templates', 'Alt+2', () => nav('templates')], ['Go to Live', 'Alt+3', () => nav('live')],
+    ['Open mini player', 'Alt+6', () => window.miniPlayer?.open()],
+    ['Go to Create', 'Alt+1', () => nav('create')], ['Go to Templates', 'Alt+2', () => nav('templates')], ['Go to Batch Export', 'Alt+3', () => nav('batch')], ['Go to Live', 'Alt+4', () => nav('live')], ['Go to Community', 'Alt+5', () => nav('community')],
     ['New project', 'Ctrl+N', () => window.Projects?.new()],
     ['Save project', 'Ctrl+S', () => window.Projects?.save()],
     ['Open project library', 'Ctrl+O', () => window.Projects?.openLibrary()],
@@ -251,7 +251,7 @@
     ['Undo visual edit', 'Ctrl+Z', () => travel(-1)], ['Redo visual edit', 'Ctrl+Y', () => travel(1)],
     ['Restore previous draft', '', () => $('easeRestore').click()],
     ['Save stage image', 'Ctrl+I', () => $('easeSnapshot').click()],
-    ['Toggle control layout', '', toggleLayout], ['Preferences', '', () => $('settingsToggle').click()],
+    ['Toggle control layout', '', toggleLayout], ['Preferences', 'Ctrl+,', () => $('settingsToggle').click()],
     ['Keyboard shortcuts', '?', () => $('showShortcutsBtn').click()],
     ['Start live audio', '', () => { nav('live'); document.querySelector('[data-live-view="liveaudio"]').click(); startLiveAudio(); }],
     ['Stop live audio', '', stopLiveAudio], ['Fullscreen stage', 'F', toggleFullscreen],
@@ -290,7 +290,7 @@
     if (ctrl && key === 't') return handle(saveCurrentAsTemplate);
     if (ctrl && key === 'z') return handle(() => travel(event.shiftKey ? 1 : -1));
     if (ctrl && key === 'y') return handle(() => travel(1));
-    if (event.altKey && ['1','2','3'].includes(key)) return handle(() => nav({1:'create',2:'templates',3:'live'}[key]));
+
     if (event.key === '?') return handle(() => $('showShortcutsBtn').click());
     if (key === 'm' && createVisible()) return handle(mute);
   }, true);

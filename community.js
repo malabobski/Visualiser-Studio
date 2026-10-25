@@ -8,8 +8,16 @@
   let tabTimer, profileCloseTimer, profilePrompted = false;
   let refreshingFriends = false, friendEpoch = 0;
   let startupRequestsChecked = false;
+  let unreadMessages=0;
+  function updateSidebar(){const requests=relationships.filter(r=>r.status==='pending'&&r.direction==='incoming').length,total=state.signedIn?requests+unreadMessages:0;el('SidebarCount').textContent=total>99?'99+':total;el('SidebarCount').hidden=!total;const nav=document.querySelector('[data-screen="community"]'),parts=[];if(requests)parts.push(requests+' friend '+(requests===1?'request':'requests'));if(unreadMessages)parts.push(unreadMessages+' unread '+(unreadMessages===1?'message':'messages'));const label='Community'+(parts.length?', '+parts.join(', '):'');nav.setAttribute('aria-label',label);nav.dataset.hint=label+' · Alt+5';}
   const profileDialog = el('ProfileDialog');
   const confirmDialog = el('ConfirmDialog');
+  const friendTabs=['friends','requests','add','corner'];
+  const corner=node('div',undefined,'community-corner-tab');corner.id='communityCornerPanel';corner.hidden=true;corner.setAttribute('role','tabpanel');corner.setAttribute('aria-labelledby','communityCornerTab');
+  screen.querySelector('.community-friends-content').append(corner);corner.append(el('Profile'));
+  const cornerTab=node('button');cornerTab.type='button';cornerTab.id='communityCornerTab';cornerTab.dataset.friendTab='corner';cornerTab.setAttribute('role','tab');cornerTab.setAttribute('aria-label','My corner');cornerTab.setAttribute('aria-selected','false');cornerTab.setAttribute('aria-controls',corner.id);
+  cornerTab.innerHTML='<svg class="community-tab-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></svg><span class="community-tab-label">My corner</span>';
+  screen.querySelector('.community-friend-tabs').append(cornerTab);el('EditProfile').removeAttribute('aria-haspopup');el('EditProfile').setAttribute('aria-controls',corner.id);el('ProfileClose').textContent='←';el('ProfileClose').setAttribute('aria-label','Back to friends');
   let confirmResolve;
   const reducedMotion = () => document.body.classList.contains('reduce-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches;
   const friendActions = new Set(['friends', 'searchPeople', 'sendRequest', 'friendAction']);
@@ -29,14 +37,15 @@
     const next = panel(name);
     if (friendTab === name && !next.hidden && !tabTimer) return;
     clearTimeout(tabTimer); tabTimer = null;
-    const previous = ['friends', 'requests', 'add'].map(panel).find(item => !item.hidden);
+    const previous = friendTabs.map(panel).find(item => !item.hidden);
     friendTab = name;
+    window.dispatchEvent(new CustomEvent('community-tab-changed',{detail:name}));
     screen.querySelectorAll('[data-friend-tab]').forEach(tab => tab.setAttribute('aria-selected', String(tab.dataset.friendTab === name)));
-    el('PanelTitle').textContent = {friends:'Friend list', requests:'Friend requests', add:'Add a friend'}[name];
-    ['friends', 'requests', 'add'].map(panel).forEach(item => { item.classList.remove('is-entering', 'is-leaving'); item.inert = false; });
+    el('PanelTitle').textContent = {friends:'Friend list', requests:'Friend requests', add:'Add a friend',corner:'My corner'}[name];
+    friendTabs.map(panel).forEach(item => { item.classList.remove('is-entering', 'is-leaving'); item.inert = false; });
     const reveal = () => {
       tabTimer = null;
-      for (const key of ['friends', 'requests', 'add']) panel(key).hidden = name !== key;
+      for (const key of friendTabs) panel(key).hidden = name !== key;
       if (animate && !reducedMotion()) next.classList.add('is-entering');
       if (name === 'add') el('PeopleQuery').focus({preventScroll:true});
     };
@@ -47,17 +56,11 @@
   }
   function openProfile() {
     if (!state.signedIn || screen.hidden) return;
-    clearTimeout(profileCloseTimer);
-    profileDialog.classList.remove('is-closing');
     usernameLock();
-    if (!profileDialog.open) profileDialog.showModal();
+    selectTab('corner');
   }
   function closeProfile(immediate = false) {
-    clearTimeout(profileCloseTimer);
-    if (!profileDialog.open) return;
-    const finish = () => { profileDialog.close(); profileDialog.classList.remove('is-closing'); };
-    if (immediate || reducedMotion()) finish();
-    else { profileDialog.classList.add('is-closing'); profileCloseTimer = setTimeout(finish, 180); }
+    if(friendTab==='corner')selectTab('friends',!immediate);
   }
   function promptProfile() {
     if (state.signedIn && !state.profile?.username && !profilePrompted && !screen.hidden) {
@@ -81,7 +84,7 @@
     const finish = () => { confirmDialog.close(); confirmDialog.classList.remove('is-closing'); const resolve = confirmResolve; confirmResolve = null; resolve(accepted); };
     if (reducedMotion()) finish(); else { confirmDialog.classList.add('is-closing'); setTimeout(finish, 180); }
   }
-  window.CommunityUI = { get: () => state, confirm: confirmCommunity };
+  window.CommunityUI = { get: () => state, confirm: confirmCommunity, openSelf:openProfile, relationships:()=>relationships,friendTab:()=>friendTab,selectFriendTab:selectTab,setUnreadMessages:count=>{unreadMessages=Math.max(0,Number(count)||0);updateSidebar();} };
   function usernameLock() {
     const available = new Date(state.profile?.username_change_available_at || 0);
     const locked = available.getTime() > Date.now();
@@ -92,10 +95,18 @@
   }
   function personRow(person, relationship, isSearch = false) {
     const row = node('div', undefined, 'community-person');
+    row.dataset.personId=person.person_id||person.id;
     const info = node('div', undefined, 'community-person-info');
     info.append(node('strong', person.display_name), node('span', '@' + person.username));
+    window.CommunityRoles?.mark(info.querySelector('strong'),person.username);
     if (person.bio) info.append(node('p', person.bio));
     row.append(node('div', (person.display_name || '◈').slice(0,1).toUpperCase(), 'community-avatar'), info);
+    const open=()=>window.CommunityUI.openPerson?.(person.username);
+    for(const target of [row.firstElementChild,info.querySelector('strong')]){
+      target.classList.add('community-profile-link');target.tabIndex=0;target.setAttribute('role','button');target.setAttribute('aria-label','Open '+person.display_name+'’s corner');
+      target.onclick=open;target.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};
+    }
+    if(relationship?.status==='accepted')info.append(node('span','Activity not shared','community-person-activity'));
     const actions = node('div', undefined, 'community-person-actions');
     const change = actionName => { removing = ''; action('friendAction', { id: relationship.id, action: actionName }); };
     if (isSearch && person.username === state.profile?.username) {
@@ -118,6 +129,7 @@
   }
   function renderFriends() {
     const accepted = relationships.filter(item => item.status === 'accepted');
+    if(accepted.length)window.Achievements?.unlock('social-friend');
     const incoming = relationships.filter(item => item.status === 'pending' && item.direction === 'incoming');
     const outgoing = relationships.filter(item => item.status === 'pending' && item.direction === 'outgoing');
     if (loaded && !startupRequestsChecked) {
@@ -136,12 +148,7 @@
     el('FriendsCount').textContent = accepted.length;
     el('RequestsCount').textContent = incoming.length;
     el('RequestsCount').hidden = !incoming.length;
-    el('SidebarCount').textContent = incoming.length > 99 ? '99+' : incoming.length;
-    el('SidebarCount').hidden = !incoming.length;
-    const communityNav = document.querySelector('[data-screen="community"]');
-    const sidebarLabel = incoming.length ? `Community, ${incoming.length} incoming friend ${incoming.length===1?'request':'requests'}` : 'Community';
-    communityNav.setAttribute('aria-label', sidebarLabel);
-    communityNav.dataset.hint = sidebarLabel;
+    updateSidebar();
     el('RequestsTab').setAttribute('aria-label', incoming.length ? `Friend requests, ${incoming.length} incoming` : 'Friend requests');
     const fill = (name, items, empty) => {
       const list = el(name);
@@ -168,6 +175,7 @@
       el('PeopleResults').replaceChildren(...people.map(person => personRow(person, relationships.find(item => item.person_id === person.id), true)));
       if (searched && !people.length) el('PeopleResults').append(node('p', 'No matching usernames. Check the spelling and try again.', 'community-empty'));
     }
+    window.dispatchEvent(new Event('community-friends-rendered'));
   }
   function render(next, force = false) {
     if (next.error) { status(next.error); return; }
@@ -227,7 +235,6 @@
         renderFriends();
       } else {
         render(result, name === 'saveProfile' && !result.error);
-        if (name === 'saveProfile' && !result.error) closeProfile();
       }
     } catch {
       if (friendActions.has(name)) el('FriendsStatus').textContent = 'Couldn’t connect. Please try again.';
@@ -311,6 +318,7 @@
   document.addEventListener('visibilitychange', refreshFriends);
   window.addEventListener('focus', refreshFriends);
   setInterval(refreshFriends, 30000);
+  window.CommunityUI.refreshFriends=refreshFriends;
   el('Profile').addEventListener('input', () => { draft = true; });
   el('Profile').addEventListener('submit', event => {
     event.preventDefault();

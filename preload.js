@@ -16,8 +16,22 @@ contextBridge.exposeInMainWorld('community', {
   sendRequest: username => ipcRenderer.invoke('community:sendRequest', username),
   friendAction: request => ipcRenderer.invoke('community:friendAction', request),
   feed: query => ipcRenderer.invoke('community:feed', query),
+  announcements: () => ipcRenderer.invoke('community:announcements'),
   publishPost: post => ipcRenderer.invoke('community:publishPost', post),
   deletePost: id => ipcRenderer.invoke('community:deletePost', id),
+  person: username => ipcRenderer.invoke('community:person', username),
+  socialSettings: () => ipcRenderer.invoke('community:socialSettings'),
+  setActivity: value => ipcRenderer.invoke('community:setActivity', value),
+  friendActivity: () => ipcRenderer.invoke('community:friendActivity'),
+  blockPerson: value => ipcRenderer.invoke('community:blockPerson', value),
+  dmInbox: () => ipcRenderer.invoke('community:dmInbox'),
+  dmOpen: username => ipcRenderer.invoke('community:dmOpen', username),
+  dmSend: message => ipcRenderer.invoke('community:dmSend', message),
+  adminStatus: () => ipcRenderer.invoke('community:adminStatus'),
+  admin: value => ipcRenderer.invoke('community:admin', value),
+  badges: usernames => ipcRenderer.invoke('community:badges', usernames),
+  notifications: () => ipcRenderer.invoke('community:notifications'),
+  acknowledgeNotifications: ids => ipcRenderer.invoke('community:acknowledgeNotifications', ids),
   onChange: callback => {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('community:state', listener);
@@ -91,7 +105,8 @@ contextBridge.exposeInMainWorld('projectFiles', {
  list:()=>ipcRenderer.invoke('projects:list'),
  save:data=>ipcRenderer.invoke('projects:save',data),
  open:id=>ipcRenderer.invoke('projects:open',id),
- update:(id,change)=>ipcRenderer.invoke('projects:update',id,change)
+ update:(id,change)=>ipcRenderer.invoke('projects:update',id,change),
+ delete:id=>ipcRenderer.invoke('projects:delete',id)
 });
 
 contextBridge.exposeInMainWorld('mediaVolume', {

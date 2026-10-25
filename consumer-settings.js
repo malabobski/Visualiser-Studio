@@ -31,14 +31,14 @@
     function filter(){
       const words=input.value.trim().toLowerCase().split(/\s+/).filter(Boolean),groups=[...card.querySelectorAll(':scope>.settings-group,:scope>.settings-footer')];
       if(words.length&&!expanded)expanded=new Map(groups.map(group=>[group,group.open]));
-      let matches=0;
+      let matches=0,openedMatch=false;
       for(const group of groups){
         let visible=0;
         const rows=[...group.querySelectorAll(':scope>.settings-row,:scope>.update-settings-status')];
         for(const row of rows){const content=text(row),show=!words.length||words.every(word=>content.includes(word));row.toggleAttribute('data-settings-search-hidden',!show);if(show)visible++;}
         if(!rows.length)visible=!words.length||words.every(word=>text(group).includes(word))?1:0;
         group.toggleAttribute('data-settings-search-hidden',!visible);
-        if(words.length&&visible&&group.tagName==='DETAILS')group.open=true;
+        if(words.length&&group.tagName==='DETAILS'){group.open=!!visible&&!openedMatch;if(group.open)openedMatch=true;}
         if(!words.length&&expanded?.has(group))group.open=expanded.get(group);
         matches+=visible;
       }

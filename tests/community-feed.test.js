@@ -5,6 +5,13 @@ const path=require('node:path');
 const {PGlite}=require('@electric-sql/pglite');
 const {cleanSharedLook,feedHandlers}=require('../community-feed');
 
+test('announcements load independently of feed filters and never expose attached private look data',async()=>{
+  let selected,table,filter,limit;const query={select:value=>{selected=value;return query;},eq:(key,value)=>{filter=[key,value];return query;},order:()=>query,limit:async value=>{limit=value;return {data:[{id:'post',author_id:'me',announcement:true,profiles:{username:'creator',display_name:'Creator'},look:{style:'bars',audioPath:'private'}}]};}};
+  const h=feedHandlers({from:name=>{table=name;return query;}},()=>({id:'me'}));
+  const result=await h.announcements();assert.equal(table,'community_posts');assert.deepEqual(filter,['announcement',true]);assert.equal(limit,50);assert.match(selected,/profiles.*username,display_name/);assert.equal(result.posts[0].is_own,true);assert.equal(result.posts[0].username,'creator');assert.equal(result.posts[0].look.audioPath,undefined);
+  await assert.rejects(feedHandlers({},()=>null).announcements(),/Sign in/);
+});
+
 test('shared looks retain supported visuals and strip audio, images, MIDI and automation',async()=>{
   const look=cleanSharedLook({style:'bars',colour:'#ff0066',params:[999999],midi:{bytes:'private'},stage:{layers:[{src:'private-image'}]},audioPath:'C:/secret.wav',automation:[{private:true}],transition:{secret:true}});
   assert.equal(look.style,'bars');assert.equal(look.colour,'#ff0066');

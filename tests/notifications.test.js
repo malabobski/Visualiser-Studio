@@ -1,0 +1,4 @@
+const test=require('node:test'),assert=require('node:assert/strict');
+const {tones,unreadChanges}=require('../notifications');
+test('achievement sounds are distinct and both sound patterns remain short',()=>{assert.notDeepEqual(tones.general,tones.achievement);for(const pattern of Object.values(tones))for(const [frequency,start,length]of pattern){assert.ok(frequency>=400&&frequency<=1200);assert.ok(start+length<1);}});
+test('message notices only fire for newly unread messages, including startup backlog',()=>{const chat=(id,unread)=>({person_id:id,unread});assert.equal(unreadChanges(new Map(),[chat('a',1)]).length,1);assert.equal(unreadChanges(new Map([['a',1]]),[chat('a',1)]).length,0);assert.equal(unreadChanges(new Map([['a',1]]),[chat('a',2)]).length,1);assert.equal(unreadChanges(new Map([['a',2]]),[chat('a',0)]).length,0);assert.equal(unreadChanges(new Map([['a',1]]),[chat('a',1),chat('b',1)]).length,1);});
