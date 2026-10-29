@@ -16,7 +16,7 @@
     refresh();window.dispatchEvent(new Event('advanced-mode-changed'));
   };
   $('styleToggle').addEventListener('click',refresh);refresh();
-  const paletteNames=['Dreamscape','Candy night','Sea glass','Electric dusk'];
+  const paletteNames=['Dreamscape','Candy night','Sea glass','Electric dusk','Laser spectrum','Spectral light','Glass prism'];
   const parameterLabels=()=>{
     if(!ComplexStyles.names[$('style').value])return;
     const slider=$('styleOptionControls').querySelector('[data-style-setting="3"]');

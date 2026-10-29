@@ -8,7 +8,9 @@
   let announcements=[],announcing=false;
   const node = (tag, text, cls) => { const n = document.createElement(tag); if (text !== undefined) n.textContent=text; if(cls)n.className=cls; return n; };
   const button = (text, run) => { const b=node('button',text); b.type='button'; b.addEventListener('click',run); return b; };
-  const styleName = style => document.querySelector(`.style-card[data-style="${style}"] .card-name`)?.textContent || style;
+  const styleName = style => [...document.querySelectorAll('.style-card')].find(card=>card.dataset.style===style)?.querySelector('.card-name')?.textContent || style;
+  const supportedLook=look=>!look.unsupported&&window.SceneTransitions.supportsStyle(look.style);
+  const updateMessage='Update Visualiser Studio to use this style.';
   const announcementPanel=node('section',undefined,'community-feed community-announcements');announcementPanel.id='communityAnnouncements';announcementPanel.hidden=true;announcementPanel.setAttribute('aria-label','Announcements');
   const announcementHeading=node('header',undefined,'community-feed-heading');announcementHeading.append(node('h2','Announcements'));const announcementList=node('div');announcementPanel.append(announcementHeading,announcementList);el('Feed').after(announcementPanel);
   async function loadAnnouncements(){if(!signedIn||announcing||!bridge.announcements)return;announcing=true;const token=epoch;try{const result=await bridge.announcements();if(token!==epoch||result.error)return;announcements=result.posts||[];renderAnnouncements();}finally{announcing=false;}}
@@ -19,6 +21,7 @@
     window.dispatchEvent(new Event('community-posts-rendered'));
   }
   function cleanLook(input) {
+    if(!supportedLook(input))throw new Error(updateMessage);
     const clean = window.SceneTransitions.look(input); delete clean.automation;
     return {...clean,response:['smooth','punchy'].includes(input.response)?input.response:'balanced',...(input.template_name?{template_name:String(input.template_name).trim().slice(0,120)}:{})};
   }
@@ -49,10 +52,12 @@
     if(post.look) {
       const look=node('div',undefined,'community-shared-look');
       look.style.setProperty('--shared-colour',post.look.colour); look.style.setProperty('--shared-background',post.look.background);
-      const text=node('div');text.append(node('small','SHARED TEMPLATE'),node('strong',post.look.template_name||styleName(post.look.style)),node('span','Style · colours · parameters'));
+      const supported=supportedLook(post.look);
+      const text=node('div');text.append(node('small','SHARED TEMPLATE'),node('strong',post.look.template_name||styleName(post.look.style)),node('span',supported?'Style · colours · parameters':updateMessage));
       const palette=node('div',undefined,'community-look-palette');
       for(const colour of [post.look.colour,...(post.look.design?.colours||[]).slice(0,4),post.look.background]) { const swatch=node('i');swatch.style.background=colour;palette.append(swatch); }
-      look.append(text,palette,button('Save to Templates',async()=>{
+      const save=button('Save to Templates',async()=>{
+        if(!supportedLook(post.look)){feedback(updateMessage);return;}
         const name=await window.TemplateNames.ask(post.look.template_name||styleName(post.look.style)+' by @'+post.username);if(!name)return;
         try {
           const id=crypto.randomUUID();
@@ -60,7 +65,9 @@
           if(!loadTemplates().some(t=>t.id===id))throw new Error();
           feedback('Look saved to Templates.');
         } catch { feedback('Couldn’t save that look. Check your local storage and try again.'); }
-      })); card.append(look);
+      });
+      save.disabled=!supported;if(!supported){save.dataset.hint=updateMessage;save.setAttribute('aria-label','Save unavailable. '+updateMessage);look.classList.add('is-unsupported');}
+      look.append(text,palette,save);card.append(look);
     }
     if(post.is_own||window.CommunityModeration?.isAdmin()) {
       const footer=node('footer');
@@ -132,7 +139,10 @@
   el('AttachLook').textContent='＋ Share template';
   el('AttachLook').addEventListener('click',()=>{
     picker.replaceChildren(node('h2','Share a template'));const list=node('div',undefined,'community-template-options');
-    for(const template of loadTemplates())list.append(button(template.name,()=>{attached=cleanLook({...template,template_name:template.name});attachment();picker.close();}));
+    for(const template of loadTemplates()){
+      const choice=button(template.name,()=>{if(!supportedLook(template))return;attached=cleanLook({...template,template_name:template.name});attachment();picker.close();});
+      choice.disabled=!supportedLook(template);if(choice.disabled)choice.dataset.hint=updateMessage;list.append(choice);
+    }
     if(!list.children.length)list.append(node('p','Save a template in Create first. You’ll choose its name when saving.'));
     picker.append(list,button('Cancel',()=>picker.close()));picker.showModal();
   });

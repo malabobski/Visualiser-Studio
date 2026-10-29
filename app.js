@@ -468,7 +468,7 @@ function restoreControlsToStage(){
   previewControlsHome.parent.insertBefore(controls,previewControlsHome.next);
   previewControlsHome=null;
 }
-$('export').onclick=async()=>{if(exporting||!loadedFile)return;exporting=true;$('export').disabled=true;$('play').disabled=true;moveControlsIntoExportScreen();const stopExportUi=showExportScreen();try{activeExportAbort=new AbortController();const usageExportDuration=Number.isFinite(audio.duration)?audio.duration:0;const midiToken=await window.MidiImport?.exportToken()||'';const params=new URLSearchParams({stageToken:await window.StageDesigner?.exportToken()||'',transitionToken:await window.StyleTransition?.exportToken()||'',midiToken,style:$('style').value,colour:$('colour').value,background:$('background').value,size:$('size').value,fps:$('framerate').value,params:JSON.stringify(valueForAll($('style').value)),design:JSON.stringify(ComplexStyles.getDesign($('style').value)),automation:JSON.stringify(window.Automation?.get($('style').value)||[])});const response=await fetch(`/render?${params}`,{method:'POST',body:loadedFile,signal:activeExportAbort.signal});if(!response.ok)throw new Error(await response.text());const reader=response.body?.getReader();if(!reader)throw new Error('Export stream unavailable.');const decoder=new TextDecoder();let buffer='';let currentEvent='';let downloadToken='';while(true){const {value,done}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});const lines=buffer.split('\n');buffer=lines.pop()||'';for(const line of lines){if(!line.trim())continue;if(line.startsWith('event:')){currentEvent=line.slice(6).trim();continue;}if(line.startsWith('data:')){const payload=JSON.parse(line.slice(5).trim());if(currentEvent==='progress'){setExportProgress(Math.max(2,Math.min(98,payload.percent||0)));}else if(currentEvent==='complete'){downloadToken=payload.token||'';}else if(currentEvent==='error'){throw new Error(payload.message||'Export failed.');}}}}if(!downloadToken)throw new Error('Export did not produce a download.');setExportProgress(100);$('exportPrompt').textContent='Your visual is ready.';$('exportCheckmark').classList.add('show');if(window.exportFiles&&!await window.exportFiles.prepare({token:downloadToken,title:loadedFile.name,style:$('styleName').textContent}))throw new Error('Could not prepare the export filename. Try exporting again.');const download=document.createElement('a');download.href=`/download?token=${encodeURIComponent(downloadToken)}`;download.download=`${$('title').textContent||'visualiser'}.webm`;download.click();$('status').textContent='WEBM downloaded.';window.dispatchEvent(new CustomEvent('visualiser-export-complete',{detail:{duration:usageExportDuration}}));setTimeout(()=>{$('exportScreen').hidden=true;},700);}catch(error){$('exportPrompt').textContent=error.name==='AbortError'?'Export cancelled.':error.message;setExportProgress(0);setTimeout(()=>{$('exportScreen').hidden=true;},1600);}finally{activeExportAbort=undefined;stopExportUi();exporting=false;$('export').disabled=false;$('play').disabled=false;restoreControlsToStage();}};updateRange();updateSize();resize();draw();renderStylePreviews();
+$('export').onclick=async()=>{if(exporting||!loadedFile)return;exporting=true;$('export').disabled=true;$('play').disabled=true;moveControlsIntoExportScreen();const stopExportUi=showExportScreen();try{activeExportAbort=new AbortController();const usageExportDuration=Number.isFinite(audio.duration)?audio.duration:0;const midiToken=await window.MidiImport?.exportToken()||'';const params=new URLSearchParams({stageToken:await window.StageDesigner?.exportToken()||'',transitionToken:await window.StyleTransition?.exportToken()||'',midiToken,style:$('style').value,colour:$('colour').value,background:$('background').value,size:$('size').value,fps:$('framerate').value,params:JSON.stringify(valueForAll($('style').value)),design:JSON.stringify(ComplexStyles.getDesign($('style').value)),automation:JSON.stringify(window.Automation?.get($('style').value)||[])});const response=await fetch(`/render?${params}`,{method:'POST',body:loadedFile,signal:activeExportAbort.signal});if(!response.ok)throw new Error(await response.text());const reader=response.body?.getReader();if(!reader)throw new Error('Export stream unavailable.');const decoder=new TextDecoder();let buffer='';let currentEvent='';let downloadToken='';while(true){const {value,done}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});const lines=buffer.split('\n');buffer=lines.pop()||'';for(const line of lines){if(!line.trim())continue;if(line.startsWith('event:')){currentEvent=line.slice(6).trim();continue;}if(line.startsWith('data:')){const payload=JSON.parse(line.slice(5).trim());if(currentEvent==='progress'){setExportProgress(Math.max(2,Math.min(98,payload.percent||0)));}else if(currentEvent==='complete'){downloadToken=payload.token||'';}else if(currentEvent==='error'){throw new Error(payload.message||'Export failed.');}}}}if(!downloadToken)throw new Error('Export did not produce a download.');setExportProgress(100);$('exportPrompt').textContent='Your visual is ready.';$('exportCheckmark').classList.add('show');if(window.exportFiles){const prepared=await window.exportFiles.prepare({token:downloadToken,title:loadedFile.name,style:$('styleName').textContent});if(prepared==='cancelled')throw new DOMException('Save cancelled.','AbortError');if(!prepared)throw new Error('Could not prepare the export filename. Try exporting again.');}const download=document.createElement('a');download.href=`/download?token=${encodeURIComponent(downloadToken)}`;download.download=`${$('title').textContent||'visualiser'}.webm`;download.click();$('status').textContent='WEBM downloaded.';window.dispatchEvent(new CustomEvent('visualiser-export-complete',{detail:{duration:usageExportDuration}}));setTimeout(()=>{$('exportScreen').hidden=true;},700);}catch(error){$('exportPrompt').textContent=error.name==='AbortError'?'Export cancelled.':error.message;setExportProgress(0);setTimeout(()=>{$('exportScreen').hidden=true;},1600);}finally{activeExportAbort=undefined;stopExportUi();exporting=false;$('export').disabled=false;$('play').disabled=false;restoreControlsToStage();}};updateRange();updateSize();resize();draw();renderStylePreviews();
 // Hover hints: a single tooltip element attached to the end of <body>, so it
 // floats above every panel and never gets clipped by a scrolling or
 // overflow-hidden container (the stage, the presets panel, etc).
@@ -566,8 +566,9 @@ function persistAppSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringi
   applySettings();
   // Startup destinations are applied after every screen module is ready.
 
-  function openSettings(){document.querySelectorAll(".settings-group").forEach(group=>group.open=false);closePanel();populateStartupTemplateOptions();settingsWindow.hidden=false;requestAnimationFrame(()=>settingsWindow.classList.add('is-visible'));}
-  function closeSettings(){settingsWindow.classList.remove('is-visible');setTimeout(()=>{settingsWindow.hidden=true;},200);}
+  let settingsTransition=0;
+  function openSettings(){const version=++settingsTransition;document.querySelectorAll(".settings-group").forEach(group=>group.open=false);closePanel();populateStartupTemplateOptions();settingsWindow.hidden=false;requestAnimationFrame(()=>{if(version===settingsTransition)settingsWindow.classList.add('is-visible');});}
+  function closeSettings(){const version=++settingsTransition;settingsWindow.classList.remove('is-visible');setTimeout(()=>{if(version===settingsTransition)settingsWindow.hidden=true;},200);}
 
   settingsToggle.addEventListener('click',openSettings);
   settingsClose.addEventListener('click',closeSettings);
@@ -593,7 +594,7 @@ function persistAppSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringi
     persistAppSettings();applyAccentColours();
     applyPickerColour('accent',DEFAULT_ACCENT);
     applyPickerColour('accent2',DEFAULT_ACCENT_2);
-    showToast('Accent colour reset');
+    showToast('Accent colour reset',{destination:{settings:'settingAccentReset'}});
   });
 
   function openShortcuts(){closeSettings();shortcutsDialog.hidden=false;}
@@ -623,8 +624,8 @@ let pendingTemplateSwitchId=null;
 
 // Small non-blocking confirmation for save/rename/delete/switch actions.
 let toastTimer=null;
-function showToast(message,{onClick,duration=2400}={}){
-  if(window.AppNotifications){window.AppNotifications.show({key:'toast',title:'Visualiser Studio',message,onClick,duration});return;}
+function showToast(message,{onClick,destination='create',duration=2400}={}){
+  if(window.AppNotifications){window.AppNotifications.show({key:'toast',title:'Visualiser Studio',message,onClick,destination,duration});return;}
   let toast=document.getElementById('appToast');
   if(!toast){
     toast=document.createElement('div');
@@ -728,7 +729,7 @@ function useTemplate(t){
   applyTemplateLook(t);
   setActiveTemplate(t);
   renderTemplatesScreen();
-  showToast(`Switched to "${t.name}"`);
+  showToast(`Switched to "${t.name}"`,{destination:'templates'});
 }
 
 // "Default" here means no template is currently tracked (activeTemplateId
@@ -792,10 +793,10 @@ async function saveCurrentAsTemplate(){
   const list=loadTemplates();
   list.push(t);
   saveTemplatesList(list);
-  if(!loadTemplates().some(item=>item.id===t.id)){showToast('Couldn’t save the template. Check your local storage.');return false;}
+  if(!loadTemplates().some(item=>item.id===t.id)){showToast('Couldn’t save the template. Check your local storage.',{destination:'templates'});return false;}
   setActiveTemplate(t);
   renderTemplatesScreen();
-  showToast(`Saved as "${t.name}"`);
+  showToast(`Saved as "${t.name}"`,{destination:'templates'});
   return true;
 }
 
@@ -814,7 +815,7 @@ function deleteTemplate(id){
   if(activeTemplateId===id){activeTemplateId=null;activeTemplateSnapshot=null;}
   if(appSettings.startupTemplateId===id){appSettings.startupTemplateId='';persistAppSettings();}
   renderTemplatesScreen();
-  if(target)showToast(`Deleted "${target.name}"`);
+  if(target)showToast(`Deleted "${target.name}"`,{destination:'templates'});
 }
 
 function duplicateTemplate(id){
@@ -826,7 +827,7 @@ function duplicateTemplate(id){
   list.push(copy);
   saveTemplatesList(list);
   renderTemplatesScreen();
-  showToast(`Duplicated as "${copy.name}"`);
+  showToast(`Duplicated as "${copy.name}"`,{destination:'templates'});
 }
 
 function toggleStartupPreset(id){
@@ -835,7 +836,7 @@ function toggleStartupPreset(id){
   persistAppSettings();
   renderTemplatesScreen();
   const t=loadTemplates().find(x=>x.id===id);
-  showToast(isPinned?'Removed as startup preset':`"${t?.name||'Template'}" will load on startup`);
+  showToast(isPinned?'Removed as startup preset':`"${t?.name||'Template'}" will load on startup`,{destination:{settings:'settingStartupTemplate'}});
 }
 
 // Populates the Settings window's startup dropdown from the current

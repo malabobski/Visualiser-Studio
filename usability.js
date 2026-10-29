@@ -90,11 +90,11 @@
     artTrigger.disabled=!!document.fullscreenElement || $('nowPlayingArt').hidden;
     if(document.fullscreenElement && artViewer.open)artViewer.close();
   });
-  const openMiniPlayer=async()=>{try{await window.miniPlayer?.open();}catch{showToast('Could not open the miniplayer. Please try again.');}};
+  const openMiniPlayer=async()=>{try{await window.miniPlayer?.open();}catch{showToast('Could not open the miniplayer. Please try again.',{onClick:()=>window.miniPlayer.open()});}};
   $('openMiniPlayer').onclick=openMiniPlayer;
   $('sidebarMiniPlayer').onclick=openMiniPlayer;
   const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
-  const write = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch { showToast('Could not save this preference.'); } };
+  const write = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch { showToast('Could not save this preference.',{destination:key==='visualiserTemplateSort'?'templates':/LiveTemplate|AlbumColours/.test(key)?'live':'create'}); } };
   const nav = screen => document.querySelector(`[data-screen="${screen}"]`)?.click();
   const createVisible = () => !document.querySelector('main').hidden;
   const snapshots = [JSON.stringify(captureCurrentLook())];
@@ -135,12 +135,12 @@
   };
   $('easeSave').onclick = () => { saveCurrentAsTemplate(); rememberLook(); };
   $('easeSnapshot').onclick = () => {
-    const image = createVisible() ? canvas : $('liveCanvas');
+    const screen=createVisible()?'create':'live';const image = screen==='create' ? canvas : $('liveCanvas');
     image.toBlob(blob => {
-      if (!blob) return showToast('Could not save the image.');
+      if (!blob) return showToast('Could not save the image.',{destination:screen});
       const url = URL.createObjectURL(blob), link = document.createElement('a');
       link.href = url; link.download = 'visualiser-' + Date.now() + '.png'; link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 30000); showToast('Image saved');
+      setTimeout(() => URL.revokeObjectURL(url), 30000); showToast('Image saved',{destination:screen});
     });
   };
 
@@ -240,31 +240,55 @@
   });
   new MutationObserver(filterTemplates).observe($('templatesGrid'), { childList: true }); filterTemplates();
 
-  const commands = [
-    ['Open audio', 'Ctrl+Shift+O', () => { nav('create'); $('file').click(); }],
-    ['Open mini player', 'Alt+6', () => window.miniPlayer?.open()],
-    ['Go to Create', 'Alt+1', () => nav('create')], ['Go to Templates', 'Alt+2', () => nav('templates')], ['Go to Batch Export', 'Alt+3', () => nav('batch')], ['Go to Live', 'Alt+4', () => nav('live')], ['Go to Community', 'Alt+5', () => nav('community')],
-    ['New project', 'Ctrl+N', () => window.Projects?.new()],
-    ['Save project', 'Ctrl+S', () => window.Projects?.save()],
-    ['Open project library', 'Ctrl+O', () => window.Projects?.openLibrary()],
-    ['Save current look as template', 'Ctrl+T', () => saveCurrentAsTemplate()],
-    ['Undo visual edit', 'Ctrl+Z', () => travel(-1)], ['Redo visual edit', 'Ctrl+Y', () => travel(1)],
-    ['Restore previous draft', '', () => $('easeRestore').click()],
-    ['Save stage image', 'Ctrl+I', () => $('easeSnapshot').click()],
-    ['Toggle control layout', '', toggleLayout], ['Preferences', 'Ctrl+,', () => $('settingsToggle').click()],
-    ['Keyboard shortcuts', '?', () => $('showShortcutsBtn').click()],
-    ['Start live audio', '', () => { nav('live'); document.querySelector('[data-live-view="liveaudio"]').click(); startLiveAudio(); }],
-    ['Stop live audio', '', stopLiveAudio], ['Fullscreen stage', 'F', toggleFullscreen],
-    ['Mute preview', 'M', mute], ['Export video', '', () => { nav('create'); if ($('export').disabled) showToast('Load an audio file first.'); else $('export').click(); }]
+  const commandGroups = [
+    ['Projects', [
+      ['Open audio', 'Ctrl+Shift+O', () => { nav('create'); $('file').click(); }],
+      ['New project', 'Ctrl+N', () => window.Projects?.new()],
+      ['Open project library', 'Ctrl+O', () => window.Projects?.openLibrary()],
+      ['Save project', 'Ctrl+S', () => window.Projects?.save()],
+      ['Restore previous draft', '', () => $('easeRestore').click()]
+    ]],
+    ['Design & export', [
+      ['Save current look as template', 'Ctrl+T', () => saveCurrentAsTemplate()],
+      ['Undo visual edit', 'Ctrl+Z', () => travel(-1)],
+      ['Redo visual edit', 'Ctrl+Y', () => travel(1)],
+      ['Save stage image', 'Ctrl+I', () => $('easeSnapshot').click()],
+      ['Export video', '', () => { nav('create'); if ($('export').disabled) showToast('Load an audio file first.'); else $('export').click(); }]
+    ]],
+    ['Playback & live audio', [
+      ['Fullscreen stage', 'F', toggleFullscreen],
+      ['Mute preview', 'M', mute],
+      ['Start live audio', '', () => { nav('live'); document.querySelector('[data-live-view="liveaudio"]').click(); startLiveAudio(); }],
+      ['Stop live audio', '', stopLiveAudio],
+      ['Open mini player', 'Alt+6', () => window.miniPlayer?.open()]
+    ]],
+    ['Go to', [
+      ['Go to Create', 'Alt+1', () => nav('create')],
+      ['Go to Templates', 'Alt+2', () => nav('templates')],
+      ['Go to Batch Export', 'Alt+3', () => nav('batch')],
+      ['Go to Live', 'Alt+4', () => nav('live')],
+      ['Go to Community', 'Alt+5', () => nav('community')]
+    ]],
+    ['App', [
+      ['Preferences', 'Ctrl+,', () => $('settingsToggle').click()],
+      ['Keyboard shortcuts', '?', () => $('showShortcutsBtn').click()],
+      ['Toggle control layout', '', toggleLayout]
+    ]]
   ];
   const palette = $('easePalette'); let returnFocus;
   function renderCommands() {
     const query = $('easeSearch').value.toLowerCase(); $('easeResults').replaceChildren();
-    commands.filter(([name]) => name.toLowerCase().includes(query)).forEach(([name,key,run]) => {
-      const button = document.createElement('button'); button.type = 'button'; button.textContent = name;
-      const hint = document.createElement('kbd'); hint.textContent = key; button.append(hint);
-      button.onclick = () => { palette.close(); run(); }; $('easeResults').append(button);
+    commandGroups.forEach(([group,commands])=>{
+      const matches=commands.filter(([name])=>name.toLowerCase().includes(query.trim()));if(!matches.length)return;
+      const section=document.createElement('section');section.className='ease-command-group';section.setAttribute('aria-label',group);
+      const heading=document.createElement('h3');heading.textContent=group;section.append(heading);
+      matches.forEach(([name,key,run])=>{
+        const button=document.createElement('button');button.type='button';button.textContent=name;
+        if(key){const hint=document.createElement('kbd');hint.textContent=key;button.append(hint);}
+        button.onclick=()=>{palette.close();run();};section.append(button);
+      });$('easeResults').append(section);
     });
+    $('easeResults').scrollTop=0;
     if (!$('easeResults').children.length) $('easeResults').textContent = 'No matching actions';
   }
   function openCommands() { if (palette.open) return; returnFocus = document.activeElement; $('easeSearch').value = ''; renderCommands(); palette.showModal(); $('easeSearch').focus(); }

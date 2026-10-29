@@ -77,6 +77,12 @@
   };
   $('recordSetupClose').onclick=()=>{if(!busy)setup.close();};
   setup.addEventListener('cancel',event=>{if(busy)event.preventDefault();});
+  const outsideSetup=event=>{const rect=setup.getBoundingClientRect();return event.target===setup&&(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom);};
+  let backdropPressed=false;
+  setup.addEventListener('pointerdown',event=>{backdropPressed=outsideSetup(event);});
+  setup.addEventListener('pointercancel',()=>{backdropPressed=false;});
+  setup.addEventListener('click',event=>{if(backdropPressed&&outsideSetup(event)&&!busy)setup.close();backdropPressed=false;});
+  setup.addEventListener('close',()=>{backdropPressed=false;});
   $('recordStart').onclick=async()=>{
     if(busy || active() || blob)return;
     busy=true;$('recordStart').disabled=true;
@@ -102,10 +108,10 @@
       recorder.onstop=()=>{
         const type=recorder.mimeType;release();
         blob=new Blob(chunks,{type});chunks=[];
-        if(!blob.size){blob=null;showToast('No recording data was captured.');return;}
+        if(!blob.size){blob=null;showToast('No recording data was captured.',{destination:{screen:'live',target:'liveRecordSetup'}});return;}
         videoURL=URL.createObjectURL(blob);$('liveRecordSetup').textContent='Review recording';showPreview();
       };
-      recorder.onerror=()=>{showToast('Recording encountered an error.');stop();};
+      recorder.onerror=()=>{showToast('Recording encountered an error.',{destination:{screen:'live',target:'liveRecordSetup'}});stop();};
       recorder.start(1000);started=performance.now();bar.classList.remove('paused');bar.hidden=false;
       $('recordPause').textContent='Pause';$('recordElapsed').textContent='0:00';$('liveRecordSetup').disabled=true;
       setup.close();window.liveRecordingFrame=includeMedia?paint:null;clock=setInterval(updateClock,250);
@@ -130,9 +136,9 @@
       if(window.recordingFiles) {
         const result=await window.recordingFiles.save(await blob.arrayBuffer());
         if(!result.saved){notice('Save cancelled. Your recording is still here.');return;}
-        showToast(`Saved to ${result.location}`);
+        showToast(`Saved to ${result.location}`,{destination:{screen:'live',target:'liveRecordSetup'}});
       } else {
-        const link=document.createElement('a');link.href=videoURL;link.download='live-visualiser-'+Date.now()+'.webm';link.click();showToast('Recording downloaded');
+        const link=document.createElement('a');link.href=videoURL;link.download='live-visualiser-'+Date.now()+'.webm';link.click();showToast('Recording downloaded',{destination:{screen:'live',target:'liveRecordSetup'}});
       }
       clearPreview();preview.close();
     } catch { notice('Could not save. Your recording is safe here; check the default folder or try another location.'); }

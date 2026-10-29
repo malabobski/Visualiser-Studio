@@ -5,6 +5,7 @@ const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
 const { renderOffline } = require('./offline-renderer');
+const {videoEncodingArgs}=require('./export-encoding');
 
 const { randomUUID } = require('crypto');
 const completedDownloads = new Map();
@@ -36,7 +37,7 @@ async function convert(req, res, fps = 30, ffmpegBin = 'ffmpeg') {
   req.on('end', async () => {
     try {
       await fsp.writeFile(input, Buffer.concat(parts));
-      const ffmpeg = spawn(ffmpegBin, ['-y', '-i', input, '-r', String(fps), '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '28', '-pix_fmt', 'yuv420p', '-c:a', 'libopus', '-f', 'webm', output]);
+      const ffmpeg = spawn(ffmpegBin, ['-y', '-i', input, '-r', String(fps), ...videoEncodingArgs(), '-c:a', 'libopus', '-f', 'webm', output]);
       let error = '';
       ffmpeg.stderr.on('data', (data) => { error += data; });
       ffmpeg.on('error', async (err) => {
@@ -75,7 +76,7 @@ async function renderFromAudio(req, res, settings, ffmpegBin = 'ffmpeg') {
       const fps = [24, 30, 60].includes(settings.fps) ? settings.fps : 30;
       const waveform = settings.style === 'wave' || settings.style === 'aurora';
       const filter = waveform ? `showwaves=s=${width}x${height}:mode=cline:colors=0x${colour}` : `showfreqs=s=${width}x${height}:mode=bar:ascale=log:fscale=log:colors=0x${colour}`;
-      const ffmpeg = spawn(ffmpegBin, ['-y', '-i', input, '-filter_complex', `[0:a]${filter}[v]`, '-map', '[v]', '-map', '0:a', '-r', String(fps), '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '28', '-pix_fmt', 'yuv420p', '-c:a', 'libopus', '-f', 'webm', output]);
+      const ffmpeg = spawn(ffmpegBin, ['-y', '-i', input, '-filter_complex', `[0:a]${filter}[v]`, '-map', '[v]', '-map', '0:a', '-r', String(fps), ...videoEncodingArgs(), '-c:a', 'libopus', '-f', 'webm', output]);
       let error = '';
       ffmpeg.stderr.on('data', (data) => { error += data; });
       ffmpeg.on('error', async (err) => { await fsp.rm(temp, { recursive: true, force: true }); send(res, 500, `FFmpeg could not start. (${err.message})`); });
@@ -93,6 +94,9 @@ async function renderExact(req, res, settings, ffmpegBin = 'ffmpeg') {
   const input = path.join(temp, 'source-audio'), output = path.join(temp, 'visualiser.webm'), parts = [];
   const sendProgress = (progress) => sendSseEvent(res, 'progress', { percent: progress.percent, frame: progress.frame, totalFrames: progress.totalFrames });
   res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+  const controller=new AbortController();
+  res.once('close',()=>{if(!res.writableEnded)controller.abort();});
+  req.once('aborted',()=>{controller.abort();fsp.rm(temp,{recursive:true,force:true}).catch(()=>{});});
   let size = 0;
   req.on('data', chunk => { size += chunk.length; if (size > 2 * 1024 * 1024 * 1024) { req.destroy(); return; } parts.push(chunk); });
   req.on('end', async () => {
@@ -104,17 +108,18 @@ async function renderExact(req, res, settings, ffmpegBin = 'ffmpeg') {
         const parsed = JSON.parse(settings.params || '[]');
         if (Array.isArray(parsed)) params = parsed.filter((n) => typeof n === 'number' && Number.isFinite(n));
       } catch { /* malformed/missing params — offline-renderer falls back to defaults */ }
-      await renderOffline(input, output, { width, height, fps: [24, 30, 60].includes(settings.fps) ? settings.fps : 30, style: settings.style, colour: /^#[0-9a-f]{6}$/i.test(settings.colour) ? settings.colour : '#9c6bff', background: /^#[0-9a-f]{6}$/i.test(settings.background) ? settings.background : '#11121a', params, stage:settings.stage,midi:settings.midi, transition:(()=>{try{return JSON.parse(settings.transition||'null');}catch{return null;}})(), automation:(()=>{try{return JSON.parse(settings.automation||'[]');}catch{return [];}})(), design: (()=>{try{return JSON.parse(settings.design||'{}');}catch{return {};}})() }, sendProgress, ffmpegBin);
+      await renderOffline(input, output, { width, height, fps: [24, 30, 60].includes(settings.fps) ? settings.fps : 30, style: settings.style, colour: /^#[0-9a-f]{6}$/i.test(settings.colour) ? settings.colour : '#9c6bff', background: /^#[0-9a-f]{6}$/i.test(settings.background) ? settings.background : '#11121a', params, stage:settings.stage,midi:settings.midi, transition:(()=>{try{return JSON.parse(settings.transition||'null');}catch{return null;}})(), automation:(()=>{try{return JSON.parse(settings.automation||'[]');}catch{return [];}})(), design: (()=>{try{return JSON.parse(settings.design||'{}');}catch{return {};}})() }, sendProgress, ffmpegBin,controller.signal);
+      controller.signal.throwIfAborted();
       const token = randomUUID();
       const expiry = setTimeout(() => { completedDownloads.delete(token); fsp.rm(temp, { recursive: true, force: true }).catch(() => {}); }, 60 * 60 * 1000);
       expiry.unref();
       completedDownloads.set(token, { output, temp, expiry });
       sendSseEvent(res, 'complete', { token });
     } catch (err) {
-      sendSseEvent(res, 'error', { message: `Offline render failed. ${err.message}` });
+      if(!res.destroyed)sendSseEvent(res, 'error', { message: `Offline render failed. ${err.message}` });
       await fsp.rm(temp, { recursive: true, force: true }).catch(() => {});
     } finally {
-      res.end();
+      if(!res.destroyed)res.end();
     }
   });
 }

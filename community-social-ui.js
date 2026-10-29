@@ -5,6 +5,72 @@
   const button=(text,click,cls)=>{const n=node('button',text,cls);n.type='button';n.onclick=click;return n;};
   let account=null,sharing=false,activities=new Map(),person=null,profileToken=0,chatToken=0,peer=null,chatLoading=false,sending=false,ticking=false,settingsLoaded=false;
   const personDialog=node('dialog',undefined,'community-profile-dialog community-person-dialog');personDialog.setAttribute('aria-label','User’s corner');screen.append(personDialog);
+  const listening=window.CommunityListening;
+  const songDialog=node('dialog',undefined,'community-profile-dialog community-song-dialog');songDialog.setAttribute('aria-label','Song details');screen.append(songDialog);
+  let artworkKey='',artworkTask=Promise.resolve('');
+  async function currentTrack(){
+    const data=typeof desktopMedia!=='undefined'?desktopMedia:null;
+    if(!data?.title||data.playbackStatus!=='Playing')return null;
+    const key=data.artwork||'';
+    if(key!==artworkKey){
+      artworkKey=key;
+      artworkTask=new Promise(resolve=>{
+        if(!key){resolve('');return;}
+        const image=new Image(),timer=setTimeout(()=>resolve(''),2000);
+        image.onload=()=>{clearTimeout(timer);try{const canvas=document.createElement('canvas');canvas.width=320;canvas.height=320;const context=canvas.getContext('2d');const size=Math.min(image.naturalWidth,image.naturalHeight);context.drawImage(image,(image.naturalWidth-size)/2,(image.naturalHeight-size)/2,size,size,0,0,320,320);resolve(canvas.toDataURL('image/webp',.75));}catch{resolve('');}};
+        image.onerror=()=>{clearTimeout(timer);resolve('');};image.src=key;
+      });
+    }
+    const artwork=await artworkTask;
+    // A media change while the artwork loads must not publish the previous song.
+    if(typeof desktopMedia==='undefined'||desktopMedia?.title!==data.title||desktopMedia?.artist!==data.artist||desktopMedia?.playbackStatus!=='Playing')return null;
+    return listening.clean({title:data.title,artist:data.artist,source:mediaSourceName(data),artwork,url:data.trackUrl});
+  }
+  async function activityPayload(shared){return {sharing:shared,activity:description(),track:shared?await currentTrack():null};}
+  function openSong(track){
+    const destination=listening.destination(track);if(!destination)return;
+    songDialog.replaceChildren();
+    const card=node('div',undefined,'community-card'),heading=node('div',undefined,'community-profile-heading');
+    heading.append(node('p','NOW PLAYING','eyebrow'),button('×',()=>closeDialog(songDialog)));heading.lastChild.setAttribute('aria-label','Close song details');card.append(heading);
+    const artwork=button('',()=>launch(),'community-song-artwork');artwork.setAttribute('aria-label',destination.label+' for '+track.title);
+    if(track.artwork){const image=node('img');image.src=track.artwork;image.alt='Artwork for '+track.title;image.onerror=()=>{artwork.replaceChildren(node('span','♫'));};artwork.append(image);}else artwork.append(node('span','♫'));
+    const status=node('p','','community-song-status');
+    async function launch(){try{const result=await bridge.openSong(track);if(result.error)status.textContent=result.error;}catch{status.textContent='Couldn’t open this song. Please try again.';}}
+    card.append(artwork,node('h2',track.title),node('p',track.artist||'Unknown artist','community-song-artist'));
+    if(track.source)card.append(node('p',track.source,'community-song-source'));
+    card.append(button(destination.label,launch,'community-primary'),status);songDialog.append(card);if(!songDialog.open)songDialog.showModal();
+  }
+  function paintListening(label,entry){
+    const activity=entry?.activity||'Activity not shared',track=listening.clean(entry?.track)||listening.legacy(activity);
+    const signature=JSON.stringify([activity,track]);if(label.dataset.listening===signature)return;
+    const key=track?JSON.stringify([track.title,track.artist,track.source]):'';
+    const changed=label.dataset.trackKey!==key;label.dataset.listening=signature;label.dataset.trackKey=key;
+    label.classList.toggle('is-sharing',!!entry);label.replaceChildren();
+    if(!track){label.textContent=activity;return;}
+    label.append(node('span','Now Playing','community-listening-label'));
+    const song=button('',()=>openSong(track),'community-listening-song');song.setAttribute('aria-label','Show song details for '+track.title);
+    song.append(node('strong',track.title),node('span',track.artist||'Unknown artist'));
+    if(changed)song.classList.add('community-song-glow');label.append(song);
+  }
+  const ownActivity=node('div',undefined,'community-own-activity');ownActivity.hidden=true;
+  const ownLabel=node('div',undefined,'community-person-activity'),ownVisibility=node('small','','community-own-visibility');
+  ownActivity.append(ownLabel,ownVisibility);screen.querySelector('.community-account')?.append(ownActivity);
+  let ownSnapshot='',ownArtwork='',ownVersion=0;
+  async function paintOwnActivity(){
+    if(!account){ownVersion++;ownSnapshot='';ownArtwork='';ownActivity.hidden=true;ownLabel.replaceChildren();delete ownLabel.dataset.listening;delete ownLabel.dataset.trackKey;return;}
+    if(screen.hidden)return;
+    const activity=description(),data=typeof desktopMedia!=='undefined'?desktopMedia:null;
+    const snapshot=JSON.stringify([account,sharing,settingsLoaded,activity,data?.title,data?.artist,data?.playbackStatus,data?.sourceAppId,data?.sourceName]);
+    const artwork=data?.artwork||'';
+    if(snapshot===ownSnapshot&&artwork===ownArtwork)return;
+    ownSnapshot=snapshot;ownArtwork=artwork;const version=++ownVersion;
+    ownActivity.hidden=false;
+    ownVisibility.textContent=settingsLoaded?(sharing?'Shared with friends':'Only you · Activity sharing is off'):'Only you';
+    // Your preview uses local media, including when activity sharing is off.
+    const isListening=activity.startsWith('Listening to ');
+    paintListening(ownLabel,{activity,track:isListening&&data?listening.clean({title:data.title,artist:data.artist,source:mediaSourceName(data),url:data.trackUrl}):null});
+    if(isListening){const track=await currentTrack();if(version===ownVersion&&account&&track)paintListening(ownLabel,{activity,track});}
+  }
   const messages=node('dialog',undefined,'community-profile-dialog community-messages-dialog');messages.setAttribute('aria-label','Direct messages');
   messages.innerHTML='<div class="community-card community-messages-shell"><div class="community-messages-top"><div><p class="eyebrow">JUST BETWEEN FRIENDS</p><h2>Messages</h2></div><button type="button" aria-label="Close messages">×</button></div><p class="community-dm-privacy">Unread messages expire after 30 days. Opened messages stay on this computer. History won’t follow you to another device.</p><div class="community-messages-layout"><aside aria-label="Conversations"></aside><div class="community-conversation"><h3>Choose a conversation</h3><div class="community-message-list" aria-label="Message history"></div><form novalidate hidden><label>Message<textarea maxlength="2000" rows="2" placeholder="Say something…"></textarea></label><div><span>0 / 2000</span><button type="submit" class="community-primary">Send</button></div></form></div></div><p class="community-message-status" role="status"></p></div>';
   screen.append(messages);const list=messages.querySelector('.community-message-list'),chatForm=messages.querySelector('form'),body=chatForm.querySelector('textarea'),chatStatus=messages.querySelector('[role=status]'),chatHeading=messages.querySelector('h3');
@@ -16,7 +82,10 @@
   const closeMessages=()=>{chatToken++;peer=null;closeDialog(messages);};
   messages.querySelector('[aria-label="Close messages"]').onclick=closeMessages;
   bindClose(messages,closeMessages);bindClose(personDialog,()=>{profileToken++;closeDialog(personDialog);});
-  function paintActivity(){for(const row of screen.querySelectorAll('.community-person[data-person-id]')){const label=row.querySelector('.community-person-activity');if(!label)continue;const activity=activities.get(row.dataset.personId)||'Activity not shared';if(label.textContent!==activity)label.textContent=activity;label.classList.toggle('is-sharing',activities.has(row.dataset.personId));}}
+  bindClose(songDialog,()=>closeDialog(songDialog));
+  function paintActivity(){for(const row of screen.querySelectorAll('.community-person[data-person-id]')){const label=row.querySelector('.community-person-activity');if(label)paintListening(label,activities.get(row.dataset.personId));}
+    if(personDialog.open&&person){const label=personDialog.querySelector('.community-person-activity');if(label)paintListening(label,activities.get(person.id));}
+  }
   window.addEventListener('community-friends-rendered',paintActivity);
   function description(){
     if(typeof exporting!=='undefined'&&exporting)return 'Exporting a visualiser video';
@@ -33,7 +102,7 @@
     const conversations=result.conversations||[],unread=conversations.reduce((sum,c)=>sum+Number(c.unread||0),0);
     messageCount.textContent=unread>99?'99+':unread;messageCount.hidden=!unread;ui.setUnreadMessages?.(unread);inboxButton.setAttribute('aria-label','Messages'+(unread?', '+unread+' unread':''));
     const changes=window.AppNotifications?.unreadChanges?.(unreadBefore,conversations)||[];unreadBefore=new Map(conversations.map(c=>[c.person_id,Number(c.unread||0)]));
-    for(const chat of changes){if(messages.open&&peer?.username===chat.username&&!document.hidden&&!screen.hidden)continue;window.AppNotifications?.show({key:'dm:'+id+':'+chat.person_id,group:'community-dm:'+id,title:'Message from '+chat.display_name,message:Number(chat.unread)===1?'You have a new message.':chat.unread+' unread messages. Click to open the conversation.',symbol:'✉',duration:7000,onClick:()=>{if(id!==account)return;document.querySelector('[data-screen="community"]')?.click();ui.selectFriendTab?.('friends');openMessages(chat.username);}});}
+    for(const chat of changes){if(messages.open&&peer?.username===chat.username&&!document.hidden&&!screen.hidden)continue;window.AppNotifications?.show({key:'dm:'+id+':'+chat.person_id,group:'community-dm:'+id,title:'Message from '+chat.display_name,message:Number(chat.unread)===1?'You have a new message.':chat.unread+' unread messages. Click to open the conversation.',symbol:'✉',duration:7000,onClick:async()=>{if(id!==account)return false;await window.AppNotifications.navigate('community');if(id!==account)return false;ui.selectFriendTab?.('friends');openMessages(chat.username);}});}
     if(result.warning&&messages.open)chatStatus.textContent=result.warning;
     const aside=messages.querySelector('aside'),snapshot=JSON.stringify(conversations);
     if(aside.dataset.snapshot!==snapshot){aside.dataset.snapshot=snapshot;aside.replaceChildren();for(const c of conversations){const b=button('',()=>openChat(c.username));b.dataset.username=c.username;b.append(node('strong',c.display_name),node('small','@'+c.username+(Number(c.unread)?' · '+c.unread+' new':'')));aside.append(b);}if(!conversations.length)aside.append(node('p','Open a friend’s corner to start a conversation.'));}
@@ -83,7 +152,7 @@
     heading.querySelector('h2').textContent=person.display_name+'’s corner';heading.querySelector('.community-avatar').textContent=person.display_name.slice(0,1).toUpperCase();
     window.CommunityRoles?.mark(heading.querySelector('h2'),person.username);window.dispatchEvent(new Event('community-posts-rendered'));
     card.append(node('p','@'+person.username,'community-corner-username'),node('p',person.bio||'A little mystery. A lot of music.','community-corner-bio'));
-    if(person.activity)card.append(node('p',person.activity,'community-person-activity is-sharing'));
+    if(person.relationship?.status==='accepted'){const activity=node('div',undefined,'community-person-activity');paintListening(activity,person.activity?{activity:person.activity,track:person.track}:null);card.append(activity);}
     const actions=node('div',undefined,'community-corner-actions'),rel=person.relationship;
     const run=async(fn)=>{const response=await fn();if(response.error){card.append(node('p',response.error));return;}await ui.refreshFriends?.();await openPerson(username);};
     if(person.blocked)actions.append(button('Unblock',()=>run(()=>bridge.blockPerson({id:person.id,blocked:false}))));
@@ -104,24 +173,27 @@
   }
   ui.openPerson=openPerson;
   el('ShareActivity').addEventListener('change',async()=>{const id=account,value=el('ShareActivity').checked;el('ShareActivity').disabled=true;
-    const result=await bridge.setActivity({sharing:value,activity:description()});if(id!==account)return;
-    if(result.error){el('ProfileStatus').textContent=result.error;el('ShareActivity').checked=sharing;}else sharing=value;el('ShareActivity').disabled=false;
+    const payload=await activityPayload(value);if(id!==account)return;
+    const result=await bridge.setActivity(payload);if(id!==account)return;
+    if(result.error){el('ProfileStatus').textContent=result.error;el('ShareActivity').checked=sharing;}else sharing=value;el('ShareActivity').disabled=false;paintOwnActivity();
   });
   async function accountChanged(state){
     const id=state.signedIn?state.accountId:null;if(id===account)return;if(account)window.AppNotifications?.clear?.('community-dm:'+account);account=id;unreadBefore=new Map();ui.setUnreadMessages?.(0);messageCount.hidden=true;messageCount.textContent='';sharing=false;settingsLoaded=false;activities.clear();paintActivity();el('ShareActivity').checked=false;el('ShareActivity').disabled=true;
-    profileToken++;chatToken++;peer=null;list.replaceChildren();body.value='';messages.querySelector('aside').replaceChildren();delete messages.querySelector('aside').dataset.snapshot;closeDialog(messages);closeDialog(personDialog);
-    if(!id)return;const result=await bridge.socialSettings();if(account!==id)return;
-    if(result.error){el('ProfileStatus').textContent=result.error;return;}settingsLoaded=true;sharing=result.sharing;el('ShareActivity').checked=sharing;el('ShareActivity').disabled=false;tick();
+    profileToken++;chatToken++;peer=null;list.replaceChildren();body.value='';messages.querySelector('aside').replaceChildren();delete messages.querySelector('aside').dataset.snapshot;closeDialog(messages);closeDialog(personDialog);closeDialog(songDialog);
+    paintOwnActivity();if(!id)return;const result=await bridge.socialSettings();if(account!==id)return;
+    if(result.error){el('ProfileStatus').textContent=result.error;return;}settingsLoaded=true;sharing=result.sharing;el('ShareActivity').checked=sharing;el('ShareActivity').disabled=false;paintOwnActivity();tick();
   }
   async function tick(){
     if(!account||ticking||!settingsLoaded)return;ticking=true;const id=account;
     try{
-      if(sharing)await bridge.setActivity({sharing:true,activity:description()});
-      if(account!==id)return;const result=await bridge.friendActivity();if(account!==id)return;if(!result.error){activities=new Map((result.activities||[]).map(a=>[a.person_id,a.activity]).filter(([,a])=>a));paintActivity();}
+      if(sharing){const payload=await activityPayload(true);if(account!==id)return;if(sharing&&el('ShareActivity').checked)await bridge.setActivity(payload);}
+      if(account!==id)return;const result=await bridge.friendActivity();if(account!==id)return;if(!result.error){activities=new Map((result.activities||[]).filter(a=>a.activity).map(a=>[a.person_id,a]));paintActivity();}
       await inbox();if(messages.open&&peer&&!document.hidden&&!sending)await openChat(peer.username,true);
     }finally{ticking=false;}
   }
   window.addEventListener('community-account',event=>accountChanged(event.detail));accountChanged(ui.get());
   setInterval(tick,30000);window.addEventListener('focus',tick);
-  new MutationObserver(()=>{if(screen.hidden){closeMessages();closeDialog(personDialog);}}).observe(screen,{attributes:true,attributeFilter:['hidden']});
+  window.nowPlaying?.onChange(paintOwnActivity);
+  setInterval(()=>{if(!document.hidden&&!screen.hidden)paintOwnActivity();},2000);
+  new MutationObserver(()=>{if(screen.hidden){closeMessages();closeDialog(personDialog);closeDialog(songDialog);}else paintOwnActivity();}).observe(screen,{attributes:true,attributeFilter:['hidden']});
 })();

@@ -15,7 +15,7 @@ async function fixture(t){
  t.after(()=>fs.rm(root,{recursive:true,force:true}));
  const handlers={},session=new EventEmitter(),window={webContents:{},isDestroyed:()=>false},downloads=path.join(root,'Downloads');await fs.mkdir(downloads);
  let selection={canceled:true,filePaths:[]};
- const options={app:{getPath:key=>key==='downloads'?downloads:root},ipcMain:{handle:(name,handler)=>handlers[name]=handler},dialog:{showOpenDialog:async()=>selection},session,getWindow:()=>window,getOrigin:()=> 'http://localhost:3000'};
+ const options={app:{getPath:key=>key==='downloads'?downloads:root},ipcMain:{handle:(name,handler)=>handlers[name]=handler},dialog:{showOpenDialog:async()=>selection,showSaveDialog:async(_win,options)=>({canceled:false,filePath:options.defaultPath})},session,getWindow:()=>window,getOrigin:()=> 'http://localhost:3000'};
  setupExportFiles(options);
  return{root,handlers,session,window,event:{sender:window.webContents},select:value=>selection=value,options,downloads};
 }
@@ -35,17 +35,25 @@ test('only prepared own-window exports use preferences and successful saves upda
  const f=await fixture(t),token='12345678-abcd-abcd-abcd-123456789abc';
  await f.handlers['exports:naming'](f.event,{format:'style'});
  function item(origin='http://localhost:3000'){
-  const result=new EventEmitter();result.getURL=()=>origin+'/download?token='+token;result.setSaveDialogOptions=value=>result.options=value;result.getSavePath=()=>path.join(f.root,'Another folder','song.webm');return result;
+  const result=new EventEmitter();result.getURL=()=>origin+'/download?token='+token;result.setSavePath=value=>result.savePath=value;result.getSavePath=()=>path.join(f.root,'Another folder','song.webm');return result;
  }
- assert.equal(f.handlers['exports:prepare'](f.event,{token:'../file',title:'Song.wav',style:'Bars'}),false);
- f.handlers['exports:prepare'](f.event,{token,title:'Song.wav',style:'Bars'});
- const foreign=item('https://example.com');f.session.emit('will-download',{},foreign,f.window.webContents);assert(!foreign.options);
- const wrongWindow=item();f.session.emit('will-download',{},wrongWindow,{});assert(!wrongWindow.options);
+ assert.equal(await f.handlers['exports:prepare'](f.event,{token:'../file',title:'Song.wav',style:'Bars'}),false);
+ await f.handlers['exports:prepare'](f.event,{token,title:'Song.wav',style:'Bars'});
+ const foreign=item('https://example.com');f.session.emit('will-download',{},foreign,f.window.webContents);assert(!foreign.savePath);
+ const wrongWindow=item();f.session.emit('will-download',{},wrongWindow,{});assert(!wrongWindow.savePath);
  const valid=item();f.session.emit('will-download',{},valid,f.window.webContents);
- assert.equal(valid.options.defaultPath,path.join(f.downloads,'Song - Bars.webm'));
+ assert.equal(valid.savePath,path.join(f.downloads,'Song - Bars.webm'));
  valid.emit('done',{},'cancelled');assert.equal(f.handlers['exports:get'](f.event).folder,'');
- f.handlers['exports:prepare'](f.event,{token,title:'Song.wav',style:'Bars'});
+ await f.handlers['exports:prepare'](f.event,{token,title:'Song.wav',style:'Bars'});
  const complete=item();f.session.emit('will-download',{},complete,f.window.webContents);complete.emit('done',{},'completed');
  for(let tries=0;tries<50&&!f.handlers['exports:get'](f.event).folder;tries++)await new Promise(resolve=>setTimeout(resolve,10));
  assert.equal(f.handlers['exports:get'](f.event).folder,path.join(f.root,'Another folder'));
+});
+test('cancelled save selection never prepares a download',async t=>{
+ const f=await fixture(t),token='12345678-abcd-abcd-abcd-123456789abc';
+ const handlers={},session=new EventEmitter();
+ setupExportFiles({...f.options,ipcMain:{handle:(name,handler)=>handlers[name]=handler},session,dialog:{showSaveDialog:async()=>({canceled:true})}});
+ assert.equal(await handlers['exports:prepare'](f.event,{token,title:'Song.wav',style:'Bars'}),'cancelled');
+ const item={getURL:()=>`http://localhost:3000/download?token=${token}`,setSavePath:()=>assert.fail('Cancelled download was prepared')};
+ session.emit('will-download',{},item,f.window.webContents);
 });

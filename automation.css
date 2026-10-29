@@ -37,7 +37,8 @@
 #automationScreen .automation-help { margin:0; padding:10px 14px; min-height:18px; background:#1b2231; border-bottom:1px solid #ffffff0a; }
 #automationScreen .automation-scroll { flex:1; min-height:0; max-height:none; overscroll-behavior:contain; }
 #automationScreen .automation-ruler { position:sticky; top:0; z-index:4; height:34px; background:#191f2d; }
-#automationScreen .automation-ruler span { padding-top:10px; }
+#automationScreen .automation-ruler span { padding-top:10px; pointer-events:none; }
+#automationScreen .automation-ruler { margin-right:0; cursor:ew-resize; touch-action:none; }
 #automationScreen .automation-track-label { background:#202737; padding:16px 12px; gap:10px; }
 #automationScreen .automation-track-label strong { line-height:1.4; padding-right:20px; }
 #automationScreen .automation-lane { transition:background .18s ease; }

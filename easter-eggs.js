@@ -72,7 +72,7 @@
   try{
     const visits=Number(localStorage.getItem('visualiserDiamondVisits')||0)+1;
     localStorage.setItem('visualiserDiamondVisits',String(visits));
-    if(visits>1)diamond.addEventListener('click',()=>{if(visits%5===0)setTimeout(()=>{showToast('You again? ♥');window.Achievements.unlock('returning');},100);},{once:true});
+    if(visits>1)diamond.addEventListener('click',()=>{if(visits%5===0)setTimeout(()=>{showToast('You again? ♥',{onClick:()=>window.Achievements.open('returning')});window.Achievements.unlock('returning');},100);},{once:true});
   }catch{}
   const fanfare=new Audio('assets/disco-fanfare.mp3');
   const emptyRecord=document.getElementById('emptyRecord');let recordTimer,recordFadeTimer;
@@ -101,7 +101,7 @@
       list.push({...defaultLook(),id:'secret-disco',name:'Disco',style:'orbit',params:[.22,140,1.7],colour:'#e88dff',background:'#160e28',response:'punchy'});
       saveTemplatesList(list);renderTemplatesScreen();refreshLiveTemplates();
     }
-    fanfare.currentTime=0;fanfare.play().catch(()=>{});showToast('Disco preset discovered! 🪩');particles('confetti',30);
+    fanfare.currentTime=0;fanfare.play().catch(()=>{});showToast('Disco preset discovered! 🪩',{destination:'templates'});particles('confetti',30);
     document.querySelector('[data-template-id="secret-disco"]')?.scrollIntoView({block:'nearest',behavior:reduced()?'instant':'smooth'});
   });
   const heading=document.querySelector('#screen-live h2');let headingTimer;
@@ -113,7 +113,7 @@
     }
   },true);
   window.addEventListener('visualiser-export-complete',()=>{
-    try{const count=Number(localStorage.getItem('visualiserCompletedExports')||0)+1;localStorage.setItem('visualiserCompletedExports',String(count));if(count>=100)window.Achievements.unlock('hundred-exports');if(count===100){showToast('100 exports! Your pixels deserve a party.');particles('confetti',70);}}catch{}
+    try{const count=Number(localStorage.getItem('visualiserCompletedExports')||0)+1;localStorage.setItem('visualiserCompletedExports',String(count));if(count>=100)window.Achievements.unlock('hundred-exports');if(count===100){showToast('100 exports! Your pixels deserve a party.',{onClick:()=>window.Achievements.open('hundred-exports')});particles('confetti',70);}}catch{}
   });
   let sleepTimer;
   audio.addEventListener('pause',()=>{clearTimeout(sleepTimer);sleepTimer=setTimeout(()=>{if(audio.paused&&audio.currentTime>0){window.Achievements.unlock('sleep');document.getElementById('eggSleeping')?.remove();const sleep=document.createElement('span');sleep.id='eggSleeping';sleep.setAttribute('aria-label','Sleeping');for(let i=0;i<3;i++){const z=document.createElement('span');z.textContent='z';z.setAttribute('aria-hidden','true');z.style.setProperty('--sleep-delay',`${i*.6}s`);sleep.append(z);}sleep.className='egg-sleeping';document.querySelector('main .stage').append(sleep);}},20000);});

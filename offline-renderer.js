@@ -6,12 +6,22 @@ const { createCanvas,loadImage } = require('@napi-rs/canvas');
 const StageComposition=require('./stage-composition');
 const FFT = require('fft.js');
 const { spawn } = require('child_process');
+const {videoEncodingArgs}=require('./export-encoding');
+// These coefficients are invariant across frames. Float64 retains the original
+// calculation's precision, so this changes the work done, not the visual signal.
+const fftWindow=Float64Array.from({length:4096},(_,i)=>.5-.5*Math.cos(Math.PI*2*i/4095));
+const bandBins=Array.from({length:112},(_,band)=>[
+  Math.max(1,Math.floor(20*Math.pow(1000,band/112)/48000*4096)),
+  Math.min(2047,Math.ceil(20*Math.pow(1000,(band+1)/112)/48000*4096))
+]);
 
 const clamp = (n, min = 0, max = 1) => Math.max(min, Math.min(max, n));
 function rgb(hex) { const n = parseInt(hex.replace('#', ''), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
 function rgba(hex, alpha = 1) { const [r, g, b] = rgb(hex); return `rgba(${r},${g},${b},${alpha})`; }
-function run(command, args, input) { return new Promise((resolve, reject) => { const p = spawn(command, args); const out = [], err = []; p.stdout.on('data', d => out.push(d)); p.stderr.on('data', d => err.push(d)); p.on('error', reject); p.on('close', code => code ? reject(new Error(Buffer.concat(err).toString().slice(-500))) : resolve(Buffer.concat(out))); if (input) p.stdin.end(input); }); }
-function write(stream, buffer) { return stream.write(buffer) ? Promise.resolve() : new Promise(resolve => stream.once('drain', resolve)); }
+function run(command, args, input,signal) { return new Promise((resolve, reject) => { const p = spawn(command, args,{signal}); const out = [], err = []; p.stdout.on('data', d => out.push(d)); p.stderr.on('data', d => err.push(d)); p.on('error', reject); p.on('close', code => code ? reject(new Error(Buffer.concat(err).toString().slice(-500))) : resolve(Buffer.concat(out))); if (input) p.stdin.end(input); }); }
+// Native canvas.data() may share storage with the next draw. Wait for the write
+// callback (not just the high-water mark) before reusing the frame's canvas.
+function write(stream, buffer) { return new Promise((resolve,reject)=>stream.write(buffer,error=>error?reject(error):resolve())); }
 
 // Mirrors app.js's styleParameters defaults (3rd entry per param). Keeping
 // these in sync means an export always looks right even if the client sent
@@ -37,9 +47,10 @@ function resolveParams(style, provided) {
   return defaults.map((fallback, i) => (typeof clean[i] === 'number' && Number.isFinite(clean[i]) ? clean[i] : fallback));
 }
 
-async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'ffmpeg') {
+async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'ffmpeg',signal) {
+  signal?.throwIfAborted();
   const sampleRate = 48000, fftSize = 4096, fps = settings.fps;
-  const pcm = await run(ffmpegBin, ['-v', 'error', '-i', input, '-ac', '1', '-ar', String(sampleRate), '-f', 'f32le', 'pipe:1']);
+  const pcm = await run(ffmpegBin, ['-v', 'error', '-i', input, '-ac', '1', '-ar', String(sampleRate), '-f', 'f32le', 'pipe:1'],undefined,signal);
   const samples = new Float32Array(pcm.buffer, pcm.byteOffset, Math.floor(pcm.length / 4));
   const totalFrames = Math.max(1, Math.ceil(samples.length / sampleRate * fps));
   const canvas = createCanvas(settings.width, settings.height), ctx = canvas.getContext('2d');
@@ -54,39 +65,43 @@ async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'f
   const style = settings.style;
   const resolvedParams = resolveParams(style, settings.params);
   const automation = ParameterAutomation.clean(settings.automation);
+  const tracks=new Map();for(const track of automation)if(!tracks.has(track.index))tracks.set(track.index,track);
   // VP9 (video) + Opus (audio) inside a .webm file: a high-quality, royalty-free
   // pairing that doesn't require the GPL-only libx264 encoder.
   // "-crf 28 -b:v 0" tells VP9 to aim for a fixed quality level rather than a
   // fixed file size — lower crf numbers = higher quality + bigger files.
-  const encoder = spawn(ffmpegBin, ['-y', '-v', 'error', '-f', 'rawvideo', '-pixel_format', 'rgba', '-video_size', `${settings.width}x${settings.height}`, '-framerate', String(fps), '-i', 'pipe:0', '-i', input, '-map', '0:v', '-map', '1:a?', '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '28', '-pix_fmt', 'yuv420p', '-c:a', 'libopus', '-shortest', '-f', 'webm', output]);
+  signal?.throwIfAborted();
+  const encoder = spawn(ffmpegBin, ['-y', '-v', 'error', '-f', 'rawvideo', '-pixel_format', 'rgba', '-video_size', `${settings.width}x${settings.height}`, '-framerate', String(fps), '-i', 'pipe:0', '-i', input, '-map', '0:v', '-map', '1:a?', ...videoEncodingArgs(), '-c:a', 'libopus', '-shortest', '-f', 'webm', output],{signal});
   let encoderError = ''; encoder.stderr.on('data', d => { encoderError += d; });
   const complete = new Promise((resolve, reject) => { encoder.on('error', reject); encoder.on('close', code => code ? reject(new Error(encoderError.slice(-500))) : resolve()); });
+  // Report errors through the export request, not an unhandled main-process error.
+  complete.catch(()=>{});encoder.stdin.on('error',()=>{});
   const reportProgress = (frame) => {
     if (typeof onProgress === 'function') {
       const percent = Math.round((frame + 1) / totalFrames * 100);
       onProgress({ frame: frame + 1, totalFrames, percent });
     }
   };
-  for (let frame = 0; frame < totalFrames; frame++) {
+  try{for (let frame = 0; frame < totalFrames; frame++) {
+    signal?.throwIfAborted();
     if(transitionRenderer){
       const time=frame/fps;transitionRenderer.render(ctx,settings.width,settings.height,time);
       if(settings.midi?.enabled!==false&&settings.midi?.data){
         if(settings.midi.layer==='replace'){ctx.fillStyle=settings.background;ctx.fillRect(0,0,settings.width,settings.height);stagePainter.paint(ctx,settings.width,settings.height,frame/fps,stage,samples.length/sampleRate,'behind');}
         const data=transitionSource.frame(Math.floor(time*60+1e-6));
-        MidiEngine.paint(ctx,settings.width,settings.height,time,settings.midi,{style,values:data.values,params:resolvedParams.map((base,index)=>ParameterAutomation.evaluate(automation.find(t=>t.index===index),time,base,(ComplexStyles.specs[style]||ParameterAutomation.basicSpecs[style])?.[index]))});
+        MidiEngine.paint(ctx,settings.width,settings.height,time,settings.midi,{style,values:data.values,params:resolvedParams.map((base,index)=>ParameterAutomation.evaluate(tracks.get(index),time,base,(ComplexStyles.specs[style]||ParameterAutomation.basicSpecs[style])?.[index]))});
       }
       stagePainter.paint(ctx,settings.width,settings.height,time,stage,samples.length/sampleRate,'front');
-      const image=ctx.getImageData(0,0,settings.width,settings.height);await write(encoder.stdin,Buffer.from(image.data.buffer));reportProgress(frame);continue;
+      await write(encoder.stdin,canvas.data());reportProgress(frame);continue;
     }
-    const frameParams=resolvedParams.map((base,index)=>ParameterAutomation.evaluate(automation.find(t=>t.index===index),frame/fps,base,(ComplexStyles.specs[style]||ParameterAutomation.basicSpecs[style])?.[index]));
+    const frameParams=resolvedParams.map((base,index)=>ParameterAutomation.evaluate(tracks.get(index),frame/fps,base,(ComplexStyles.specs[style]||ParameterAutomation.basicSpecs[style])?.[index]));
     const [p0,p1,p2]=frameParams;
     const centre = Math.floor(frame * sampleRate / fps), start = centre - fftSize / 2;
-    for (let i = 0; i < fftSize; i++) { const sample = samples[start + i] || 0; source[i] = sample * (.5 - .5 * Math.cos(Math.PI * 2 * i / (fftSize - 1))); }
+    for (let i = 0; i < fftSize; i++) { const sample = samples[start + i] || 0; source[i] = sample * fftWindow[i]; }
     fft.realTransform(spectrum, source);
     const values = new Float32Array(112); let energy = 0;
     for (let band = 0; band < values.length; band++) {
-      const low = 20 * Math.pow(20000 / 20, band / values.length), high = 20 * Math.pow(20000 / 20, (band + 1) / values.length);
-      const a = Math.max(1, Math.floor(low / sampleRate * fftSize)), b = Math.min(fftSize / 2 - 1, Math.ceil(high / sampleRate * fftSize)); let peak = 0;
+      const [a,b]=bandBins[band];let peak = 0;
       for (let bin = a; bin <= b; bin++) peak = Math.max(peak, Math.hypot(spectrum[bin * 2], spectrum[bin * 2 + 1]));
       peak /= fftSize / 2;
       const base = Math.pow(clamp(Math.log10(1 + peak * 120) / 2.1), 1.45); const transient = Math.max(0, base - history[band]) * 1.25;
@@ -225,9 +240,12 @@ async function renderOffline(input, output, settings, onProgress, ffmpegBin = 'f
 
     if(settings.midi?.enabled!==false&&settings.midi?.data){if(settings.midi.layer==='replace'){ctx.fillStyle=settings.background;ctx.fillRect(0,0,settings.width,settings.height);}MidiEngine.paint(ctx,settings.width,settings.height,frame/fps,settings.midi,{style,values,params:frameParams});}
     stagePainter.paint(ctx,settings.width,settings.height,frame/fps,stage,samples.length/sampleRate,'front');
-    const image = ctx.getImageData(0, 0, settings.width, settings.height); await write(encoder.stdin, Buffer.from(image.data.buffer));
+    // The stage is composited onto an opaque background. Native pixels therefore
+    // match getImageData byte-for-byte, without its full-frame unpremultiply copy.
+    await write(encoder.stdin,canvas.data());
     reportProgress(frame);
   }
   encoder.stdin.end(); await complete;
+  }catch(error){if(encoder.exitCode===null&&!encoder.killed)encoder.kill();await complete.catch(()=>{});throw error;}
 }
 module.exports = { renderOffline };

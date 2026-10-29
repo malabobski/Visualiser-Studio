@@ -103,7 +103,7 @@
       const card=document.createElement('button');card.type='button';card.className='achievement-card';card.dataset.achievement=secret.id;
       card.setAttribute('aria-describedby','achievement-hint-'+secret.id);
       card.innerHTML='<span class="achievement-symbol" aria-hidden="true">◇</span><span class="achievement-copy"><strong></strong><span class="achievement-status"></span></span><span class="achievement-progress"></span><span class="achievement-hint" role="tooltip"></span>';
-      card.querySelector('strong').textContent=secret.name;const hint=card.querySelector('.achievement-hint');hint.id='achievement-hint-'+secret.id;hint.textContent=secret.hint;hint.hidden=true;card.dataset.hint=secret.hint;
+      card.querySelector('strong').textContent=secret.name;const hint=card.querySelector('.achievement-hint');hint.id='achievement-hint-'+secret.id;hint.textContent=secret.hint;
       card.onfocus=()=>card.classList.add('hint-visible');card.onblur=()=>card.classList.remove('hint-visible');
       card.onclick=()=>card.classList.add('hint-visible');cards.set(secret.id,card);list.append(card);
     }
@@ -116,6 +116,7 @@
     const trigger=document.getElementById('showAchievements');let previousFocus;
     function open(id){render();if(!dialog.open){previousFocus=document.activeElement;dialog.showModal();}const card=cards.get(id);if(card){card.scrollIntoView({block:'center',behavior:'instant'});card.focus();}}
     trigger.onclick=()=>open();
+    root.Achievements.open=open;
     document.getElementById('achievementsClose').onclick=()=>dialog.close();
     dialog.addEventListener('close',()=>{document.getElementById('achievementsResetConfirm').hidden=true;(previousFocus?.isConnected?previousFocus:trigger).focus();});
     dialog.addEventListener('click',event=>{const rect=dialog.getBoundingClientRect();if(event.target===dialog&&(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom))dialog.close();});

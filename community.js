@@ -138,9 +138,9 @@
         title:'Friend requests',symbol:'!',
         message:`${incoming.length} friend ${incoming.length===1?'request':'requests'} while you were gone! So popular!`,
         duration:8000,
-        onClick:() => {
+        onClick:async() => {
           closeProfile(true);
-          document.querySelector('[data-screen="community"]')?.click();
+          await window.AppNotifications.navigate('community');
           selectTab('requests');
         }
       });

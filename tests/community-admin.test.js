@@ -5,6 +5,8 @@ test('admin bridge validates actions and never trusts a supplied role',async()=>
  await assert.rejects(h.admin({action:'grantAdmin',username:'other',role:'admin'}),/available admin action/);
  await assert.rejects(h.admin({action:'verify',username:'name',verified:'true'}),/verification/);
  await h.admin({action:'verify',username:'@name',verified:true});assert.deepEqual(called,{name:'community_admin_verify',args:{target_username:'name',verify:true}});
+ await assert.rejects(h.admin({action:'notify_all',requestId:'invalid',title:'News',body:'Hello'}),/notification title/);
+ const requestId='10000000-0000-4000-8000-000000000001';await h.admin({action:'notify_all',requestId,title:'News',body:'Hello'});assert.deepEqual(called,{name:'community_admin_notify_all',args:{request_id:requestId,notification_title:'News',message_body:'Hello'}});
  await assert.rejects(adminHandlers({},()=>null).adminStatus(),/Sign in/);
 });
 test('only the bound owner can moderate, verify or notify; badges follow UUIDs and recipients stay private',async()=>{
@@ -40,6 +42,19 @@ test('only the bound owner can moderate, verify or notify; badges follow UUIDs a
   await as(ids[2]);await db.query("update public.profiles set username='malchim' where id=$1",[ids[2]]);assert.equal((await rpc('community_admin_status')).rows[0].community_admin_status,false,'claiming the old username cannot transfer admin');
   await db.exec('reset role');await db.exec(await fs.readFile(path.join(__dirname,'../supabase/community-admin-setup.sql'),'utf8'));await as(ids[2]);assert.equal((await rpc('community_admin_status')).rows[0].community_admin_status,false,'rerunning setup cannot transfer ownership to the reused username');
   await as(ids[0]);assert.equal((await rpc('community_admin_status')).rows[0].community_admin_status,true);
+  await db.exec('reset role');await db.exec(await fs.readFile(path.join(__dirname,'../supabase/community-listening-and-broadcast-setup.sql'),'utf8'));await as(ids[0]);
+  const broadcast='10000000-0000-4000-8000-000000000001';
+  await as(ids[1]);await assert.rejects(rpc('community_admin_notify_all',[broadcast,'News','Everyone gets this']),/Admin access required/);
+  await assert.rejects(db.query('select * from public.community_notification_broadcasts'),/permission denied/);
+  await as(ids[0]);await assert.rejects(rpc('community_admin_notify_all',[broadcast,'','Body']),/Add a title/);
+  assert.equal((await rpc('community_admin_notify_all',[broadcast,'News','Everyone gets this'])).rows[0].community_admin_notify_all,3);
+  for(const id of ids){await as(id);const notices=(await rpc('community_notifications')).rows;assert.equal(notices.length,1);assert.equal(notices[0].title,'News');}
+  await as(ids[1]);const broadcastNotice=(await rpc('community_notifications')).rows[0];await rpc('community_ack_notifications',[[broadcastNotice.id]]);
+  await as(ids[0]);assert.equal((await rpc('community_admin_notify_all',[broadcast,'News','Everyone gets this'])).rows[0].community_admin_notify_all,3);
+  await assert.rejects(rpc('community_admin_notify_all',[broadcast,'Changed','Different text']),/already sent/);
+  await as(ids[1]);assert.equal((await rpc('community_notifications')).rows.length,0,'retry cannot redeliver a dismissed broadcast');
+  await as(ids[2]);assert.equal((await rpc('community_notifications')).rows.length,1,'retry cannot duplicate an unread broadcast');
   await as(null,'anon');await assert.rejects(rpc('community_admin_status'),/permission denied/);
+  await assert.rejects(rpc('community_admin_notify_all',[broadcast,'News','Everyone gets this']),/permission denied/);
  }finally{await db.close();}
 });

@@ -10,10 +10,14 @@ const fsp = require('fs/promises');
 const { UpdateService } = require('./app-updates');
 const { autoUpdater } = require('electron-updater');
 const { MediaVolume } = require('./media-volume');
+const { NowPlayingControl } = require('./now-playing-control');
 const { MacAutomation } = require('./mac-automation');
 const { MacNowPlaying, allowedApps } = require('./mac-now-playing');
+const { keepMiniPlayerOnTop } = require('./mini-player-window');
+const { loadMiniPlayerBounds, rememberMiniPlayerBounds } = require('./mini-player-state');
 const macAutomation = process.platform === 'darwin' ? new MacAutomation() : null;
 const mediaVolume = new MediaVolume({ automation: macAutomation });
+const nowPlayingControl = new NowPlayingControl();
 let macNowPlaying;
 const isMacPreview = process.platform === 'darwin' && require('./package.json').visualiserMacPreview === true;
 const isManualMacRelease = process.platform === 'darwin' && require('./package.json').visualiserManualMacUpdates === true;
@@ -162,13 +166,16 @@ const updates = new UpdateService({
     return (await response.json()).tag_name;
   },
   enabled:!isMacPreview && !isManualMacRelease && app.isPackaged && (['win32','darwin'].includes(process.platform) || !!process.env.APPIMAGE),
-  disabledMessage:isManualMacRelease ? 'Mac 1.2.9 uses manual updates. Download future Mac installers from the Visualiser Studio release page.' : isMacPreview ? 'Mac preview · Updates are disabled for this test build. Install newer test builds manually.' : undefined,
+  disabledMessage:isManualMacRelease ? 'Mac uses manual updates. Download future Mac installers from the Visualiser Studio release page.' : isMacPreview ? 'Mac preview · Updates are disabled for this test build. Install newer test builds manually.' : undefined,
   savePreference:async automatic=>{const file=updatePreferencesPath();await fsp.mkdir(path.dirname(file),{recursive:true});await fsp.writeFile(file,JSON.stringify({automatic}));},
   onInstall:()=>{exitConfirmed=true;},onInstallError:()=>{exitConfirmed=false;}
 });
-updates.on('change',state=>{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('updates:state',state);});
+let releaseHighlights={snapshot:()=>null,acknowledge:async()=>false};
+const updateSnapshot=state=>({...state,whatsNew:releaseHighlights.snapshot()});
+updates.on('change',state=>{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('updates:state',updateSnapshot(state));});
 const isUpdateWindow = event => !!mainWindow && !mainWindow.isDestroyed() && event.sender===mainWindow.webContents;
-ipcMain.handle('updates:get',event=>isUpdateWindow(event)?updates.snapshot():null);
+ipcMain.handle('updates:get',event=>isUpdateWindow(event)?updateSnapshot(updates.snapshot()):null);
+ipcMain.handle('updates:highlights-seen',event=>isUpdateWindow(event)?releaseHighlights.acknowledge():false);
 ipcMain.handle('updates:check',event=>isUpdateWindow(event)?updates.check():null);
 ipcMain.handle('updates:automatic',(event,value)=>isUpdateWindow(event)?updates.setAutomatic(value):null);
 ipcMain.handle('updates:install',event=>isUpdateWindow(event)?updates.install():{ok:false,message:'Update installation unavailable.'});
@@ -229,6 +236,7 @@ ipcMain.handle('media-volume:set', async (event, request) => {
 });
 app.on('will-quit', () => {
   mediaVolume.stop();
+  nowPlayingControl.stop();
   discordStopped=true;clearTimeout(discordRetry);clearTimeout(discordTimer);
   macNowPlaying?.stop();
   macAutomation?.stop();
@@ -262,7 +270,7 @@ function setupSystemAudioLoopback() {
 // Read via a small bundled PowerShell script (now-playing.ps1) rather than a
 // native npm binding: no compilation step, no Electron ABI rebuild, nothing
 // to break when the app gets packaged. It's Windows-only and polls once a
-// second, printing one line of JSON to stdout per change; if spawning it
+// quarter second, printing one line of JSON to stdout; if spawning it
 // fails for any reason, Now Playing just stays empty rather than crashing.
 let nowPlayingProcess = null;
 let lastNowPlayingPayload = null;
@@ -297,18 +305,11 @@ function setupNowPlaying() {
     if (!isVolumeWindow(event)) return false;
     if (!['toggle', 'previous', 'next', 'seek'].includes(action)) return false;
     if (action === 'seek' && (!Number.isFinite(position) || position < 0)) return false;
-    return new Promise(resolve => {
-      const args = ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-Action', action];
-      if (action === 'seek') args.push('-Position', String(position));
-      const child = spawn('powershell.exe', args, { windowsHide: true });
-      let output = ''; child.stdout.on('data', chunk => output += chunk.toString());
-      const timer = setTimeout(() => { child.kill(); resolve(false); }, 20000);
-      child.on('error', () => { clearTimeout(timer); resolve(false); });
-      child.on('close', () => { clearTimeout(timer); resolve(output.trim() === 'true'); });
-    });
+    return nowPlayingControl.request(action, position);
   });
+  nowPlayingControl.start();
   console.log('[now-playing] starting poller:', scriptPath);
-  nowPlayingProcess = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath]);
+  nowPlayingProcess = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath], { windowsHide: true });
 
   let buffer = '';
   nowPlayingProcess.stdout.on('data', (chunk) => {
@@ -336,6 +337,7 @@ function setupNowPlaying() {
 }
 
 let recordingFolder;
+let fileDialogs=dialog;
 const recordingPrefsPath = () => path.join(app.getPath('userData'), 'recording-preferences.json');
 async function getRecordingFolder() {
   if(recordingFolder!==undefined)return recordingFolder;
@@ -347,7 +349,7 @@ const folderLabel = folder => folder ? '/' + path.basename(folder) : 'Choose loc
 ipcMain.handle('recording:folder', async () => folderLabel(await getRecordingFolder()));
 ipcMain.handle('recording:choose-folder', async event => {
   const win=BrowserWindow.fromWebContents(event.sender);
-  const result=await dialog.showOpenDialog(win,{title:'Default recording save location',properties:['openDirectory','createDirectory']});
+  const result=await fileDialogs.showOpenDialog(win,{title:'Default recording save location',properties:['openDirectory','createDirectory']});
   if(!result.canceled && result.filePaths[0]) {
     recordingFolder=result.filePaths[0];
     await fsp.writeFile(recordingPrefsPath(),JSON.stringify({folder:recordingFolder}));
@@ -361,7 +363,7 @@ ipcMain.handle('recording:save', async (event, bytes) => {
   let target;
   if(folder) target=path.join(folder,name);
   else {
-    const result=await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender),{title:'Save live recording',defaultPath:name,filters:[{name:'WebM video',extensions:['webm']}]});
+    const result=await fileDialogs.showSaveDialog(BrowserWindow.fromWebContents(event.sender),{title:'Save live recording',defaultPath:name,filters:[{name:'WebM video',extensions:['webm']}]});
     if(result.canceled || !result.filePath)return {saved:false};
     target=result.filePath;
   }
@@ -375,7 +377,11 @@ function restoreFullApp() {
 }
 ipcMain.handle('mini:open', async () => {
   if(miniWindow && !miniWindow.isDestroyed()){miniWindow.show();miniWindow.focus();return;}
-  miniWindow=new BrowserWindow({width:454,height:244,minWidth:340,minHeight:220,frame:false,transparent:true,backgroundColor:'#00000000',alwaysOnTop:true,resizable:false,show:false,skipTaskbar:false,title:'Visualiser Studio · Mini player',icon:path.join(__dirname,'build','mini-icon.png'),webPreferences:{contextIsolation:true,preload:path.join(__dirname,'preload.js')}});
+  const stateFile=path.join(app.getPath('userData'),'mini-player-window.json');
+  const savedBounds=loadMiniPlayerBounds(stateFile,screen);
+  miniWindow=new BrowserWindow({width:454,height:244,...savedBounds,minWidth:280,minHeight:104,frame:false,transparent:true,backgroundColor:'#00000000',alwaysOnTop:true,resizable:false,show:false,skipTaskbar:false,title:'Visualiser Studio · Mini player',icon:path.join(__dirname,'build','mini-icon.png'),webPreferences:{contextIsolation:true,preload:path.join(__dirname,'preload.js')}});
+  rememberMiniPlayerBounds(miniWindow,stateFile);
+  keepMiniPlayerOnTop(miniWindow);
   miniWindow.setOpacity(miniOpacity);
   miniWindow.webContents.on('did-finish-load',()=>{miniWindow.webContents.setZoomMode('isolated');miniWindow.webContents.setZoomFactor(1);});
   miniWindow.once('ready-to-show',()=>{if(miniWindow){miniWindow.show();mainWindow?.hide();}});
@@ -387,6 +393,11 @@ ipcMain.handle('mini:action',(event,action,value)=>{
   if(action==='full')restoreFullApp();
   else if(action==='quit')app.quit();
   else if(action==='opacity' && Number.isFinite(value)){miniOpacity=Math.min(1,Math.max(.35,value));miniWindow.setOpacity(miniOpacity);}
+  else if(action==='compact-size'){
+    const bounds=miniWindow.getBounds();
+    // Keep the opposite edge stationary when shrinking from a top corner.
+    if(bounds.height>104)miniWindow.setBounds({x:bounds.x,y:typeof value==='string'&&value.includes('t')?bounds.y+bounds.height-104:bounds.y,width:bounds.width,height:104});
+  }
   else if(action==='default-size'){
     const bounds=miniWindow.getBounds(),area=screen.getDisplayMatching(bounds).workArea;
     miniWindow.setBounds({x:Math.max(area.x,Math.min(bounds.x,area.x+area.width-454)),y:Math.max(area.y,Math.min(bounds.y,area.y+area.height-244)),width:454,height:244});
@@ -396,7 +407,7 @@ ipcMain.handle('mini:bounds',event=>event.sender===miniWindow?.webContents?miniW
 ipcMain.on('mini:resize',(event,bounds)=>{
   if(!miniWindow || event.sender!==miniWindow.webContents || !bounds)return;
   if(!['x','y','width','height'].every(key=>Number.isFinite(bounds[key])))return;
-  miniWindow.setBounds({x:Math.round(bounds.x),y:Math.round(bounds.y),width:Math.round(Math.min(1800,Math.max(340,bounds.width))),height:Math.round(Math.min(1400,Math.max(220,bounds.height)))});
+  miniWindow.setBounds({x:Math.round(bounds.x),y:Math.round(bounds.y),width:Math.round(Math.min(1800,Math.max(280,bounds.width))),height:Math.round(Math.min(1400,Math.max(104,bounds.height)))});
 });
 
 ipcMain.handle('window:control', (event, action) => {
@@ -480,11 +491,13 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  try{releaseHighlights=await require('./release-highlights').loadReleaseHighlights({directory:app.getPath('userData'),version:app.getVersion(),packaged:app.isPackaged&&!isMacPreview});}catch{}
+  fileDialogs=require('./file-explorer-main').setupFileExplorer({app,ipcMain,dialog,getWindow:()=>mainWindow});
   require('./community-auth').setupCommunity({ app, ipcMain, safeStorage, shell, getWindow: () => mainWindow, getOrigin: () => `http://localhost:${mainAppPort}`, onSignedIn: () => {
     restoreFullApp();
     require('./community-window').focusCommunityWindow({app,win:mainWindow});
   } });
-  require('./export-files').setupExportFiles({app,ipcMain,dialog,session:session.defaultSession,getWindow:()=>mainWindow,getOrigin:()=>`http://localhost:${mainAppPort}`});
+  require('./export-files').setupExportFiles({app,ipcMain,dialog:fileDialogs,session:session.defaultSession,getWindow:()=>mainWindow,getOrigin:()=>`http://localhost:${mainAppPort}`});
   try{const saved=JSON.parse(await fsp.readFile(interfacePreferencesPath(),'utf8'));if(Number.isFinite(saved.zoom)&&saved.zoom>=75&&saved.zoom<=150&&saved.zoom%5===0)interfaceZoom=saved.zoom;}catch{}
   if(process.platform === 'darwin') {
     try { const saved=JSON.parse(await fsp.readFile(macPreferencesPath(),'utf8'));if(allowedApps.includes(saved.preferred))macMediaPreference=saved.preferred; } catch {}

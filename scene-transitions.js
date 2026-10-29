@@ -6,6 +6,8 @@ const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,n));
 const specs={...ParameterAutomation.basicSpecs,...ComplexStyles.specs,particles:[['Density',40,300,180,1],['Speed',.05,.6,.2,.01],['Size',.4,4,1,.1]]};
 const rgba=(hex,alpha=1)=>{const n=parseInt(hex.slice(1),16);return `rgba(${n>>16},${n>>8&255},${n&255},${alpha})`;};
 const particles=Array.from({length:300},(_,i)=>({x:(i*37%157)/157,y:(i*91%151)/151,s:.7+i%3,v:.04+(i%7)*.018}));
+const fftWindow=Float64Array.from({length:4096},(_,i)=>.5-.5*Math.cos(Math.PI*2*i/4095));
+const supportsStyle=style=>typeof style==='string'&&Object.hasOwn(specs,style);
 function look(input){
   input=input&&typeof input==='object'?input:{};const style=Object.hasOwn(specs,input.style)?input.style:'bars';
   const colour=value=>/^#[0-9a-f]{6}$/i.test(value||'')?value:null;
@@ -25,7 +27,7 @@ function clean(input){
 }
 function progress(config,time){const t=clamp((time-config.start)/config.duration);return t*t*(3-2*t);}
 class AudioSource{
-  constructor(samples,sampleRate){this.samples=samples;this.sampleRate=sampleRate;this.fft=new FFT(4096);this.input=new Array(4096).fill(0);this.output=this.fft.createComplexArray();this.cache=new Map();this.rawCache=new Map();}
+  constructor(samples,sampleRate){this.samples=samples;this.sampleRate=sampleRate;this.fft=new FFT(4096);this.input=new Array(4096).fill(0);this.output=this.fft.createComplexArray();this.cache=new Map();this.rawCache=new Map();this.bandBins=Array.from({length:112},(_,band)=>[Math.max(1,Math.floor(20*Math.pow(1000,band/112)/sampleRate*4096)),Math.min(2047,Math.ceil(20*Math.pow(1000,(band+1)/112)/sampleRate*4096))]);}
   frame(step){
     step=Math.max(0,Math.floor(step));if(this.cache.has(step))return this.cache.get(step);
     const base=this.baseFrame(step),history=new Float64Array(base.values.length);
@@ -42,9 +44,9 @@ class AudioSource{
   baseFrame(step){
     if(this.rawCache.has(step))return this.rawCache.get(step);
     const centre=Math.floor(step/60*this.sampleRate),values=new Float32Array(112),wave=new Float32Array(2048);
-    for(let i=0;i<4096;i++)this.input[i]=(this.samples[centre-2048+i]||0)*(.5-.5*Math.cos(Math.PI*2*i/4095));
+    for(let i=0;i<4096;i++)this.input[i]=(this.samples[centre-2048+i]||0)*fftWindow[i];
     this.fft.realTransform(this.output,this.input);let energy=0;
-    for(let band=0;band<112;band++){const low=20*Math.pow(1000,band/112),high=20*Math.pow(1000,(band+1)/112),a=Math.max(1,Math.floor(low/this.sampleRate*4096)),b=Math.min(2047,Math.ceil(high/this.sampleRate*4096));let peak=0;for(let bin=a;bin<=b;bin++)peak=Math.max(peak,Math.hypot(this.output[bin*2],this.output[bin*2+1]));values[band]=Math.pow(clamp(Math.log10(1+peak/2048*120)/2.1),1.45);energy+=values[band];}
+    for(let band=0;band<112;band++){const [a,b]=this.bandBins[band];let peak=0;for(let bin=a;bin<=b;bin++)peak=Math.max(peak,Math.hypot(this.output[bin*2],this.output[bin*2+1]));values[band]=Math.pow(clamp(Math.log10(1+peak/2048*120)/2.1),1.45);energy+=values[band];}
     for(let i=0;i<wave.length;i++)wave[i]=this.samples[centre-2048+i*2]||0;
     const data={values,energy:energy/112,wave};this.rawCache.set(step,data);if(this.rawCache.size>1200)this.rawCache.delete(this.rawCache.keys().next().value);return data;
   }
@@ -222,5 +224,5 @@ const style=settings.style,frameParams=settings.params.map((base,index)=>Paramet
 
 }
 
-const api={look,clean,progress,AudioSource,Renderer};if(typeof module!=='undefined')module.exports=api;else root.SceneTransitions=api;
+const api={look,supportsStyle,clean,progress,AudioSource,Renderer};if(typeof module!=='undefined')module.exports=api;else root.SceneTransitions=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

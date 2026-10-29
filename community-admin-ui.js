@@ -18,11 +18,11 @@
  }
  window.CommunityRoles={mark:(target,username)=>{if(!target)return;target.dataset.roleUsername=username;paint(target);},get:username=>cache.get(username),update:roles=>{for(const role of roles||[])cache.set(role.username,role);document.querySelectorAll('[data-role-username]').forEach(paint);},clear:()=>{cache.clear();document.querySelectorAll('.community-role-badges').forEach(n=>n.remove());}};
  window.CommunityAdminTools={create:({parent,invoke,confirm,changed})=>{
-  const dialog=node('dialog',undefined,'community-admin-dialog');dialog.setAttribute('aria-labelledby','communityAdminHeading');parent.append(dialog);let writing=false,mode='announce';
+  const dialog=node('dialog',undefined,'community-admin-dialog');dialog.setAttribute('aria-labelledby','communityAdminHeading');parent.append(dialog);let writing=false,confirming=false,mode='announce';
   function close(){if(!writing)dialog.close();}
   dialog.addEventListener('cancel',e=>{e.preventDefault();close();});dialog.addEventListener('click',e=>{if(e.target!==dialog)return;const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)close();});
   async function submit(input,status){if(writing)return;writing=true;dialog.querySelectorAll('button,input,textarea,select').forEach(n=>n.disabled=true);
-   try{const result=await invoke(input);if(result?.error)throw Error(result.error);status.textContent={announce:'Announcement published.',notify:'Notification sent.',verify:input.verified?'Account verified.':'Verification removed.',edit:'Post updated.',pin:input.pinned?'Post pinned.':'Post unpinned.'}[input.action]||'Saved.';await changed?.();return true;}
+   try{const result=await invoke(input);if(result?.error)throw Error(result.error);const count=result?.result??result;status.textContent=input.action==='notify_all'?(Number.isInteger(count)?'Notification sent to '+count+' accounts.':'Notification sent to everyone.'):{announce:'Announcement published.',notify:'Notification sent.',verify:input.verified?'Account verified.':'Verification removed.',edit:'Post updated.',pin:input.pinned?'Post pinned.':'Post unpinned.'}[input.action]||'Saved.';await changed?.();return true;}
    catch(error){status.textContent=error.message||'Couldn’t save. Try again.';return false;}
    finally{writing=false;dialog.querySelectorAll('button,input,textarea,select').forEach(n=>n.disabled=false);}
   }
@@ -32,14 +32,26 @@
    mode=tab;shell('Your Community');const tabs=node('div',undefined,'community-admin-tabs');
    for(const [id,label]of [['announce','Announcement'],['notify','Notification'],['verify','Verification']]){const b=button(label,()=>open(id));b.setAttribute('aria-pressed',String(id===mode));tabs.append(b);}dialog.append(tabs);
    const form=node('form'),status=node('p',undefined,'community-admin-status');status.setAttribute('role','status');form.noValidate=true;
-   let username,title,body,verify;
+   let username,title,body,verify,audience,broadcastKey='',broadcastId;
    if(mode==='announce'){form.append(node('p','Publish a marked announcement to both feed views.'));body=field(form,'Announcement',1000,true);}
-   if(mode==='notify'){username=field(form,'Send to username',24);username.placeholder='@username';title=field(form,'Title',80);body=field(form,'Message',500,true);form.append(node('p','Sent privately to this account. It appears in their app notifications or website inbox.'));}
+   if(mode==='notify'){
+    const label=node('label','Recipient');audience=node('select');for(const [value,text]of [['person','One account'],['everyone','Everyone']]){const option=node('option',text);option.value=value;audience.append(option);}label.append(audience);form.append(label);
+    username=field(form,'Send to username',24);username.placeholder='@username';title=field(form,'Title',80);body=field(form,'Message',500,true);
+    const help=node('p');form.append(help);
+    audience.onchange=()=>{username.closest('label').hidden=audience.value==='everyone';help.textContent=audience.value==='everyone'?'Send to all current Community accounts, including your own. They’ll see it in the app or website when they next open Community.':'Sent privately to this account in the app or website.';};audience.onchange();
+   }
    if(mode==='verify'){username=field(form,'Username',24);username.placeholder='@username';const label=node('label','Verification');verify=node('select');for(const [value,text]of [['true','Verified account'],['false','Remove verification']]){const o=node('option',text);o.value=value;verify.append(o);}label.append(verify);form.append(label);}
    const save=node('button',mode==='announce'?'Publish announcement':mode==='notify'?'Send notification':'Save verification');save.type='submit';form.append(save,status);dialog.append(form);
-   form.onsubmit=async e=>{e.preventDefault();if(mode==='notify'&&!await confirm('Send this notification?','Send “'+title.value.trim()+'” to @'+username.value.replace(/^@/,'').trim()+'?','Send notification'))return;
-    const input={action:mode,...(username?{username:username.value}:{}),...(title?{title:title.value}:{}),...(body?{body:body.value}:{}),...(verify?{verified:verify.value==='true'}:{})};
-    if(await submit(input,status)){if(mode!=='verify')form.reset();}
+   form.onsubmit=async e=>{e.preventDefault();if(writing||confirming)return;
+    const all=mode==='notify'&&audience.value==='everyone';
+    const input={action:all?'notify_all':mode,...(username&&!all?{username:username.value}:{}),...(title?{title:title.value.trim()}:{}),...(body?{body:body.value.trim()}:{}),...(verify?{verified:verify.value==='true'}:{})};
+    if(mode==='notify'){
+     if(!input.title||!input.body||input.title.length>80||input.body.length>500){status.textContent='Add a title (up to 80 characters) and message (up to 500).';return;}
+     if(!all&&!/^[a-z0-9_]{3,24}$/.test(input.username.replace(/^@/,'').trim().toLowerCase())){status.textContent='Enter a valid username.';return;}
+     confirming=true;let accepted;try{accepted=await confirm(all?'Notify everyone?':'Send this notification?','Send “'+input.title+'” to '+(all?'all current Community accounts':'@'+input.username.replace(/^@/,'').trim())+'?\n\n'+input.body,all?'Send to everyone':'Send notification');}finally{confirming=false;}if(!accepted)return;
+     if(all){const key=JSON.stringify([input.title,input.body]);if(key!==broadcastKey){broadcastKey=key;broadcastId=crypto.randomUUID();}input.requestId=broadcastId;}
+    }
+    if(await submit(input,status)){broadcastKey='';broadcastId=undefined;if(mode!=='verify'){form.reset();audience?.onchange();}}
    };
    if(!dialog.open)dialog.showModal();form.querySelector('input,textarea')?.focus();
   }

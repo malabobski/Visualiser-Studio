@@ -41,11 +41,14 @@ function setupExportFiles({app,ipcMain,dialog,session,getWindow,getOrigin}) {
     return save({format:options.format,...(pattern?{pattern}:{})});
   });
   const pending=new Map();
-  ipcMain.handle('exports:prepare',(event,request)=>{
+  ipcMain.handle('exports:prepare',async(event,request)=>{
     if(!allowed(event)||!request||!/^[\da-f-]{36}$/i.test(request.token)||typeof request.title!=='string'||typeof request.style!=='string')return false;
     for(const [key,value] of pending)if(Date.now()-value.created>600000)pending.delete(key);
     if(pending.size>=30)return false;
-    pending.set(request.token,{title:request.title.slice(0,200),style:request.style.slice(0,80),created:Date.now()});return true;
+    const metadata={title:request.title.slice(0,200),style:request.style.slice(0,80),created:Date.now()};
+    const result=await dialog.showSaveDialog(getWindow(),{title:'Save visualiser video',defaultPath:path.join(prefs.folder||app.getPath('downloads'),exportFilename(metadata,prefs.format,prefs.pattern)),filters:[{name:'WebM video',extensions:['webm']}]});
+    if(result.canceled||!result.filePath)return 'cancelled';
+    pending.set(request.token,{...metadata,savePath:result.filePath});return true;
   });
   session.on('will-download',(_event,item,contents)=>{
     if(contents!==getWindow()?.webContents)return;
@@ -53,9 +56,7 @@ function setupExportFiles({app,ipcMain,dialog,session,getWindow,getOrigin}) {
     if(url.origin!==getOrigin()||url.pathname!=='/download')return;
     const token=url.searchParams.get('token'),metadata=pending.get(token);if(!metadata)return;
     pending.delete(token);
-    let folder=prefs.folder||app.getPath('downloads');
-    try{if(!fs.statSync(folder).isDirectory())folder=app.getPath('downloads');}catch{folder=app.getPath('downloads');}
-    item.setSaveDialogOptions({title:'Save visualiser video',defaultPath:path.join(folder,exportFilename(metadata,prefs.format,prefs.pattern)),filters:[{name:'WebM video',extensions:['webm']}]});
+    item.setSavePath(metadata.savePath);
     item.once('done',(_event,state)=>{
       if(state==='completed'&&item.getSavePath())save({folder:path.dirname(item.getSavePath())}).catch(()=>{});
     });

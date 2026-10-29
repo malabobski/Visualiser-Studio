@@ -4,6 +4,13 @@ function cleanSharedLook(input) {
   const clean = Scenes.look(input);
   delete clean.automation;
   const name=String(input.template_name||'').trim().slice(0,120);
+  // Feed reads must retain an unknown style's identity, never turn it into Bars.
+  // Only display-safe fields cross the bridge; the original stays on the server.
+  if(!Scenes.supportsStyle(input.style)){
+    clean.style=String(input.style||'unknown').slice(0,100);
+    clean.params=Array.isArray(input.params)?input.params.slice(0,64).map(n=>Number.isFinite(n)?n:0):[];
+    clean.unsupported=true;
+  }
   return {...clean, response:['smooth','punchy'].includes(input.response)?input.response:'balanced',...(name?{template_name:name}:{})};
 }
 function feedHandlers(client, getUser) {
@@ -35,6 +42,7 @@ function feedHandlers(client, getUser) {
       return {posts:(posts||[]).map(post=>({...post,look:post.look?cleanSharedLook(post.look):null}))};
     },
     publishPost: async input => {
+      if(input?.look&&!Scenes.supportsStyle(input.look.style))throw new Error('Update Visualiser Studio to use this style.');
       const body = String(input?.body||'').trim();
       if (body.length>1000 || (!body&&!input?.look)) throw new Error('Write up to 1,000 characters or attach a look.');
       return {id:await rpc('community_publish_post',{post_body:body,shared_look:input?.look?cleanSharedLook(input.look):null})};

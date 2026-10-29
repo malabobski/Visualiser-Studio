@@ -14,6 +14,7 @@ function adminHandlers(client,getUser){
    else if(action==='announce'){if(typeof input.body!=='string'||!input.body.trim()||input.body.length>1000)throw Error('Write an announcement of up to 1,000 characters.');name='community_admin_announce';args={message_body:input.body};}
    else if(action==='verify'){if(typeof input.verified!=='boolean')throw Error('Choose a verification setting.');name='community_admin_verify';args={target_username:username(input.username),verify:input.verified};}
    else if(action==='notify'){if(typeof input.title!=='string'||!input.title.trim()||input.title.length>80||typeof input.body!=='string'||!input.body.trim()||input.body.length>500)throw Error('Add a notification title and message.');name='community_admin_notify';args={target_username:username(input.username),notification_title:input.title,message_body:input.body};}
+   else if(action==='notify_all'){if(!uuid(input.requestId)||typeof input.title!=='string'||!input.title.trim()||input.title.length>80||typeof input.body!=='string'||!input.body.trim()||input.body.length>500)throw Error('Add a notification title and message.');name='community_admin_notify_all';args={request_id:input.requestId,notification_title:input.title,message_body:input.body};}
    else throw Error('Choose an available admin action.');
    return {result:await rpc(name,args)};
   }

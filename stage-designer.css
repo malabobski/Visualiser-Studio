@@ -54,3 +54,9 @@
 body.reduce-motion .stage-designer,body.reduce-motion .remembered-looks-dialog{transition:none}
 .stage-designer select { width:100%; min-width:0; box-sizing:border-box; border:1px solid #ffffff20; border-radius:8px; padding:8px; background:#151d2d; color:#e2e9f8; font:12px var(--control-font); }
 .designer-visualiser-divider { padding:10px 12px; margin:4px 0; border:1px dashed #9db2d047; border-radius:7px; background:#121a2a; color:#9cacc7; font-size:11px; }
+#stageLayerList>button[data-stage-layer]{display:flex;align-items:center;gap:9px;touch-action:none;cursor:grab}
+#stageLayerList>button[data-stage-layer]>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.designer-layer-grip{flex:none;font-size:16px;line-height:16px;color:#8b9bb6}
+#stageLayerList>button.is-dragging{opacity:.6;cursor:grabbing;border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,#252d41)}
+#stageLayerList.is-reordering .designer-visualiser-divider{border-color:color-mix(in srgb,var(--accent-2) 60%,transparent);color:var(--accent-2)}
+#resetMenuGuides{white-space:normal;text-align:center;line-height:1.5}

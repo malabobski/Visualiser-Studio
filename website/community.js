@@ -4,7 +4,7 @@
   const KEY='sb_publishable_lZCJGmDSNzMOQbfTlLRkZA_NlG3bmuR'; // Public project key; RLS controls access.
   const SITE='https://malchim.malabobski.workers.dev/';
   const el=id=>document.getElementById('wc'+id), section=document.getElementById('community');
-  const styleNames={bars:'Bars',mirror:'Mirror',radial:'Radial',wave:'Waveform',particles:'Particles',aurora:'Aurora',orbit:'Orbit',rings:'Rings',spiral:'Spiral',grid:'Grid',starburst:'Starburst',tunnel:'Tunnel',prism:'Shatterfield',city:'Bass surf',notes:'Note trails'};
+  const styleNames={bars:'Bars',mirror:'Mirror',radial:'Radial',wave:'Waveform',particles:'Particles',aurora:'Aurora',orbit:'Orbit',rings:'Rings',spiral:'Spiral',grid:'Grid',starburst:'Starburst',tunnel:'Tunnel',prism:'Shatterfield',city:'Bass surf',notes:'Note trails',laser:'Laser Bloom',wings:'Spectral Wings',glass:'Glass Comets'};
   let client,user=null,profile=null,posts=[],pending=[],scope='everyone',loaded=false,hasMore=false,loading=false,writing=false,epoch=0,accountEpoch=0,accountId,confirmResolve,admin=false;
   let notified=new Set();
   const text=(tag,value,cls)=>{const n=document.createElement(tag);if(value!==undefined)n.textContent=value;if(cls)n.className=cls;return n;};
@@ -35,6 +35,7 @@
     if(matchMedia('(prefers-reduced-motion: reduce)').matches)finish();else{el('Confirm').classList.add('wc-closing');setTimeout(finish,180);}
   }
   const adminInvoke=input=>{
+    if(input.action==='notify_all')return rpc('community_admin_notify_all',{request_id:input.requestId,notification_title:input.title,message_body:input.body});
     const actions={pin:['community_admin_pin',{post_id:input.id,pin:input.pinned}],edit:['community_admin_edit',{post_id:input.id,message_body:input.body,template_name:input.template_name??null}],announce:['community_admin_announce',{message_body:input.body}],verify:['community_admin_verify',{target_username:input.username,verify:input.verified}],notify:['community_admin_notify',{target_username:input.username,notification_title:input.title,message_body:input.body}]};
     const args=actions[input.action];if(!args)return Promise.reject(Error('Choose an available admin action.'));return rpc(...args);
   };

@@ -112,4 +112,14 @@ The Community sidebar count includes incoming requests and unread messages. The 
 
 When an automatic download reaches ready, an update alert appears once for that version in the current session. Clicking opens the existing restart confirmation; downloading never installs or restarts by itself. The Settings restart button stays available after dismissing the alert. Saving a dirty template before restarting waits for the name dialog and the completed save; cancellation prevents installation.
 
+### Listening cards
+
+Creator Tools also supports notifications to Everyone, using `supabase/migrations/202610280002_community_broadcast.sql`. Only the bound owner can send these. Every current profile gets its own notification copy and can dismiss it independently. Retrying the same request does not redeliver or duplicate notices. Messages appear inside the desktop app and website using the existing notification popups and inbox, with the existing 30-day expiry. `supabase/community-listening-and-broadcast-setup.sql` combines both updates for the manual database workflow.
+
+Apply `supabase/migrations/202610280001_community_listening.sql` after the existing migrations to enable shared song details and artwork. It adds a bounded JSON song snapshot and two versioned activity functions. It keeps the existing sharing preference, accepted-friends filter, blocking rules and 90-second expiry. Old activity writes clear the previous song snapshot, including on sign-out. The migration can be run again safely.
+
+The app sends a compressed 320-pixel artwork thumbnail only when listening activity is shared. Friends and profile corners show “Now Playing” and a brief glow when the song changes. Clicking the song opens an accessible details dialog; its artwork and action button open an allowlisted exact track URL when supplied, or a clearly labelled platform search. No artwork URL is fetched from a friend's profile. Reduced-motion settings suppress the glow.
+
+Until the database update is applied, the app falls back to the existing text activity, with the label, glow and song popup still available. Existing text cannot carry artwork or an exact song link. Restart the Electron app to load the updated bridge and activity handlers.
+
 Official references: https://supabase.com/docs/guides/auth/social-sign-in/auth-discord · https://supabase.com/docs/guides/auth/redirect-urls · https://supabase.com/docs/guides/auth/sessions/pkce-flow

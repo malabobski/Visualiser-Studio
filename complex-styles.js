@@ -1,8 +1,18 @@
 (function(root){
 const palettes=[['#70e2d2','#659ef7','#a68bf5','#ed91cf','#ffb69a','#eed987'],['#ff698b','#ffab6e','#ffe19a','#ae86ff','#6c9fff','#57d6c9'],['#82d6be','#7db5dc','#adabe8','#dbadc9','#e7cba0','#b8d591'],['#58c7ff','#7968ed','#cb75e3','#f68fb6','#faac7e','#a1e1d8']];
-const names={prism:'Shatterfield',city:'Bass surf',notes:'Note trails'};
+const LaserBloom=typeof module!=='undefined'&&module.exports?require('./laser-bloom'):root.LaserBloom;
+const RefractionStyles=typeof module!=='undefined'&&module.exports?require('./refraction-styles'):root.RefractionStyles;
+palettes.push(['#ff19ab','#ff315e','#823aff','#36baff','#a4df5d','#ff4a17']);
+palettes.push(['#c7fbff','#5aaeff','#ff2444','#9571ff','#b9df65','#ff5a29'],['#82c9ff','#a88aff','#ff314d','#5892ff','#b5e875','#e8f7ff']);
+const names={wings:'Spectral Wings',glass:'Glass Comets',laser:'Laser Bloom',prism:'Shatterfield',city:'Bass surf',notes:'Note trails'};
 const movements=['None','Drift','Sweep','Orbit','Ripple','Breathe'],focuses=['Balanced','Notes','Transients'];
 const specs=Object.fromEntries(Object.keys(names).map(id=>[id,[['Travel speed',.1,2,.7,.05],['Detail',8,40,22,1],['Force',.2,1.5,.8,.05],['Palette',0,3,0,1],['Movement',0,5,0,1],['Response focus',0,2,0,1]]]));
+specs.laser[0]=['Travel speed',.1,2,.45,.05];specs.laser[3]=['Palette',0,4,4,1];
+specs.laser.push(['Glow',0,2,1,.05],['Colour separation',0,2,1,.05],['Spread',.3,1.8,1,.05],['Afterglow',0,.6,.22,.01],['Twist',0,1,.12,.02]);
+for(const [style,palette,speed] of [['wings',5,.4],['glass',6,.35]]){
+  specs[style][0]=['Travel speed',.1,2,speed,.05];specs[style][3]=['Palette',0,6,palette,1];
+  specs[style].push(['Glow',0,2,1,.05],['Colour separation',0,2,1,.05],['Depth',.2,2,1,.05],['Trail length',0,1,.5,.05],[style==='wings'?'Spread':'Orb size',.3,1.8,1,.05]);
+}
 specs.prism.push(['Shard size',.3,3,1,.1],['Gravity',0,1.5,.5,.05],['Burst count',1,8,3,1]);
 specs.notes.push(['Trail length',6,90,30,1],['Trail thickness',.3,3,1,.1],['Pitch bend',0,2,.6,.05]);
 specs.city.push(['Surface depth',8,64,32,1],['Wave height',.2,2,1,.05],['Line thickness',.3,3,1,.1]);
@@ -12,10 +22,12 @@ if(!names[style])return false;
 const p=params||specs[style].map(v=>v[3]),speed=clamp(p[0]||.7,.1,2),detail=Math.round(clamp(p[1]||22,8,40)),force=clamp(p[2]||.8,.2,1.5),mode=Math.round(p[4]||0),focus=Math.round(p[5]||0);
 let s=states.get(ctx);if(!s||s.style!==style||time<s.time||time-s.time>1.5){s={style,time,phase:0,previous:new Float32Array(48),smooth:new Float32Array(48),lastHit:new Float32Array(48).fill(-10),objects:[],history:[],springs:[],serial:0,clock:0};states.set(ctx,s);}
 const rawDt=clamp(time-s.time,0,.1),dt=rawDt*speed;s.time=time;s.clock+=dt;
-const custom=design.customColours!==false&&Array.isArray(design.colours)?design.colours.filter(c=>/^#[0-9a-f]{6}$/i.test(c)).slice(0,8):[],palette=custom.length>=2?custom:palettes[Math.round(p[3]||0)%4],colour=i=>palette[Math.abs(Math.floor(i))%palette.length];
+const custom=design.customColours!==false&&Array.isArray(design.colours)?design.colours.filter(c=>/^#[0-9a-f]{6}$/i.test(c)).slice(0,8):[],palette=custom.length>=2?custom:palettes[Math.round(p[3]||0)%palettes.length],colour=i=>palette[Math.abs(Math.floor(i))%palette.length];
 const lanes=48,levels=new Float32Array(lanes),hits=[];
-for(let i=0;i<lanes;i++){const a=Math.floor(i/lanes*spectrum.length),b=Math.max(a+1,Math.floor((i+1)/lanes*spectrum.length));let v=0;for(let j=a;j<b;j++)v=Math.max(v,spectrum[j]||0);const rise=Math.max(0,v-s.previous[i]),neighbours=((spectrum[Math.max(0,a-2)]||0)+(spectrum[Math.min(spectrum.length-1,b+2)]||0))/2,target=focus===1?clamp((v-neighbours*.45)*1.65):focus===2?clamp(v*.15+rise*4):v;s.smooth[i]+=(target-s.smooth[i])*(1-Math.exp(-Math.max(rawDt,.016)/(target>s.smooth[i]?.035:.22)));levels[i]=s.smooth[i];if((rise>.11||v>.4&&s.previous[i]<.24)&&s.clock-s.lastHit[i]>.12){hits.push({lane:i,v:clamp(rise*2+v*.5)});s.lastHit[i]=s.clock;}s.previous[i]=v;}
+for(let i=0;i<lanes;i++){const a=Math.floor(i/lanes*spectrum.length),b=Math.max(a+1,Math.floor((i+1)/lanes*spectrum.length));let v=0;for(let j=a;j<b;j++)v=Math.max(v,spectrum[j]||0);const rise=Math.max(0,v-s.previous[i]),neighbours=((spectrum[Math.max(0,a-2)]||0)+(spectrum[Math.min(spectrum.length-1,b+2)]||0))/2,target=focus===1?clamp((v-neighbours*.45)*1.65):focus===2?clamp(v*.15+rise*4):v;s.smooth[i]+=(target-s.smooth[i])*(1-Math.exp(-((style==='laser'&&s.laser||(style==='wings'||style==='glass')&&s.refraction)?rawDt:Math.max(rawDt,.016))/(target>s.smooth[i]?.035:.22)));levels[i]=s.smooth[i];if((rise>.11||v>.4&&s.previous[i]<.24)&&s.clock-s.lastHit[i]>.12){hits.push({lane:i,v:clamp(rise*2+v*.5)});s.lastHit[i]=s.clock;}s.previous[i]=v;}
 const mean=(a,b)=>levels.slice(a,b).reduce((sum,v)=>sum+v,0)/(b-a),bass=mean(0,16),mid=mean(16,34),treble=mean(34,48);s.phase+=dt*(bass*.5+mid*.3+treble*.2)*force*3;
+if(style==='laser'){LaserBloom.paint(ctx,w,h,levels,s,p,rawDt,bass,mid,treble,palette,design);return true;}
+if(style==='wings'||style==='glass'){RefractionStyles.paint(ctx,w,h,levels,s,p,rawDt,bass,mid,treble,palette,design,style,hits);return true;}
 const direction=(lane,seed)=>{let angle=(lane/lanes-.5)*2.1;if(mode===1)angle+=Math.sin(seed*6.28)*.7;if(mode===2)angle+=(lane%2?1:-1)*.85;if(mode===3)angle+=s.phase;if(mode===4)angle=seed*Math.PI*2;if(mode===5)angle+=Math.sin(s.phase)*bass;return angle;};
 const emit=(hit,kind)=>{const n=++s.serial,seed=hash(n),angle=direction(hit.lane,seed),power=(.12+hit.v*.65)*force;s.objects.push({kind,lane:hit.lane,x:kind==='trail'?.02:hash(n+17)*.94+.03,y:kind==='trail'?1-(hit.lane+.5)/lanes:hash(n+39)*.86+.07,vx:Math.cos(angle)*power,vy:Math.sin(angle)*power,age:0,life:2.5+seed*2,r:0,amplitude:hit.v*force,rotation:seed*6.28,tail:[]});};
 hits.forEach(hit=>{if(style==='prism')for(let i=0;i<Math.round(p[8]??3);i++)emit(hit,'shard');if(style==='notes')emit(hit,'trail');});s.objects=s.objects.filter(o=>o.age<o.life&&o.x>-1&&o.x<2&&o.y>-1&&o.y<2).slice(-250);

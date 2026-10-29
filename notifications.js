@@ -16,18 +16,44 @@
  notice.innerHTML='<button id="achievementNoticeOpen" type="button"><span aria-hidden="true">✦</span><span><small>Notification</small><strong id="achievementNoticeName" role="status"></strong></span></button><button id="achievementNoticeDismiss" type="button" aria-label="Dismiss notification">×</button><span class="notification-timer" aria-hidden="true"></span>';
  document.body.append(notice);let queue=[],active=null,timer,closeTimer,remaining=0,started=0,closing=false;
  const reduced=()=>document.body.classList.contains('reduce-motion')||matchMedia('(prefers-reduced-motion: reduce)').matches;
+ async function navigate(destination){
+  const route=typeof destination==='string'?{screen:destination}:destination;if(!route)return false;
+  if(document.fullscreenElement)try{await document.exitFullscreen();}catch{}
+  const get=id=>document.getElementById(id);
+  if(route.settings){
+   if(get('settingsWindow')?.hidden||!get('settingsWindow')?.classList.contains('is-visible'))get('settingsToggle')?.click();
+   const search=get('settingsSearch');if(search?.value){search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));}
+   const target=get(route.settings);if(!target)return false;
+   const group=target.matches('.settings-group')?target:target.closest('.settings-group');if(group)group.open=true;
+   requestAnimationFrame(()=>{target.scrollIntoView({block:'nearest',behavior:reduced()?'instant':'smooth'});});return true;
+  }
+  if(route.screen){
+   if(!get('settingsWindow')?.hidden)get('settingsClose')?.click();
+   for(const [dialog,close]of [['midiSetup','midiClose'],['stageDesignerDialog','stageDesignerClose']])if(get(dialog)?.open)get(close)?.click();
+   if(document.querySelector('.complex-colour-dialog[open]'))get('complexColourClose')?.click();
+   if(!get('presetWindow')?.hidden)get('presetClose')?.click();
+   if(!get('automationScreen')?.hidden)get('automationClose')?.click();
+   if(!get('projectLibrary')?.hidden)get('projectLibraryClose')?.click();
+   if(route.screen==='projects'){if(!root.Projects)return false;await root.Projects.openLibrary();return true;}
+   const tab=[...document.querySelectorAll('[data-screen]')].find(el=>el.dataset.screen===route.screen);if(!tab)return false;tab.click();
+  }
+  if(route.target){const target=get(route.target);if(!target)return false;requestAnimationFrame(()=>target.scrollIntoView({block:'nearest',behavior:reduced()?'instant':'smooth'}));}
+  return !!(route.screen||route.target);
+ }
  function resume(){if(!active||closing)return;notice.classList.remove('is-paused');started=performance.now();clearTimeout(timer);timer=setTimeout(leave,remaining);}
  function pause(){if(!active||closing||notice.classList.contains('is-paused'))return;clearTimeout(timer);remaining=Math.max(0,remaining-(performance.now()-started));notice.classList.add('is-paused');}
  function showNext(){
   clearTimeout(timer);clearTimeout(closeTimer);closing=false;notice.classList.remove('is-leaving','is-paused');active=queue.shift()||null;if(!active)return;
   const copy=document.getElementById('achievementNoticeOpen');copy.querySelector('span:first-child').textContent=active.symbol||'◈';copy.querySelector('small').textContent=active.title||'Visualiser Studio';document.getElementById('achievementNoticeName').textContent=active.message||'';notice.setAttribute('aria-label',active.title||'Notification');
+  copy.disabled=!active.onClick&&!active.destination;
   remaining=Math.max(1000,Math.min(30000,Number(active.duration)||5500));notice.style.setProperty('--notice-duration',remaining+'ms');const progress=notice.querySelector('.notification-timer');progress.style.animation='none';void progress.offsetWidth;progress.style.animation='';notice.showPopover();resume();if(document.hidden)pause();if(!active.soundPlayed)sound(active.achievement?'achievement':'general');root.dispatchEvent(new CustomEvent('notification-shown',{detail:{kind:active.achievement?'achievement':'general',title:active.title,group:active.group}}));
  }
  function leave(){if(!active||closing)return;clearTimeout(timer);closing=true;notice.classList.add('is-leaving');const finish=()=>{notice.hidePopover();active=null;showNext();};if(reduced())finish();else closeTimer=setTimeout(finish,190);}
  function show(item){if(!item||!item.message)return;item={...item,soundPlayed:false};if(document.hidden){sound(item.achievement?'achievement':'general');item.soundPlayed=true;}if(item.key){queue=queue.filter(n=>n.key!==item.key);if(active?.key===item.key){queue.unshift(item);leave();return;}}queue.push(item);if(!active&&!closing)showNext();}
  function clearWhere(test){queue=queue.filter(item=>!test(item));if(active&&test(active))leave();}
- document.getElementById('achievementNoticeOpen').onclick=()=>{const item=active;leave();item?.onClick?.();};document.getElementById('achievementNoticeDismiss').onclick=leave;
+ let activating=false;
+ document.getElementById('achievementNoticeOpen').onclick=async()=>{const item=active;if(!item||activating||!item.onClick&&!item.destination)return;activating=true;try{const opened=await(item.onClick?item.onClick():navigate(item.destination));if(opened!==false&&active===item)leave();}catch{if(active===item)document.getElementById('achievementNoticeName').textContent='Couldn’t open that view. Try again.';}finally{activating=false;}};document.getElementById('achievementNoticeDismiss').onclick=leave;
  notice.addEventListener('pointerenter',pause);notice.addEventListener('pointerleave',()=>{if(!notice.contains(document.activeElement))resume();});notice.addEventListener('focusin',pause);notice.addEventListener('focusout',e=>{if(!notice.contains(e.relatedTarget)&&!notice.matches(':hover'))resume();});
  document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();else if(!notice.matches(':hover')&&!notice.contains(document.activeElement))resume();});
- root.AppNotifications={show,clear:group=>clearWhere(n=>n.group===group),clearAchievements:()=>clearWhere(n=>!!n.achievement),unreadChanges};
+ root.AppNotifications={show,navigate,clear:group=>clearWhere(n=>n.group===group),clearAchievements:()=>clearWhere(n=>!!n.achievement),unreadChanges};
 })(typeof window==='undefined'?globalThis:window);

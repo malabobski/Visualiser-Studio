@@ -11,6 +11,8 @@
 #liveCustomiseDialog .live-stage-toolbar{display:none!important}
 #liveCustomiseDialog .live-customise-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 #liveCustomiseDialog label{min-width:0}#liveCustomiseDialog .live-param{grid-template-columns:minmax(70px,90px) minmax(0,1fr) 38px;gap:8px}
+#liveCustomiseDialog .live-param.live-param-named{grid-template-columns:minmax(70px,90px) minmax(0,1fr) 96px}
+#liveCustomiseDialog .live-param-named output{white-space:normal;overflow-wrap:normal}
 #liveCustomiseDialog .live-rgb-menu{min-width:0;width:100%;box-sizing:border-box}#liveCustomiseDialog .live-rgb-row{grid-template-columns:14px minmax(0,1fr) 30px}
 @media(max-width:1000px){#liveCustomiseDialog{width:calc(100vw - 32px)}.live-customise-workspace{grid-template-columns:minmax(280px,340px) minmax(0,1fr);gap:16px}.live-customise-editor{padding:16px}}
 @media(max-width:700px){#liveCustomiseDialog{height:calc(100vh - 32px);max-height:calc(100vh - 32px);overflow:auto}.live-customise-workspace{height:auto;grid-template-columns:1fr;grid-template-rows:28vh 55vh;gap:16px}.live-customise-stage-pane{grid-row:1}.live-customise-editor{grid-row:2}}

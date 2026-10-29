@@ -1,4 +1,13 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),Stage=require('../stage-composition'),{createCanvas,loadImage}=require('@napi-rs/canvas');
+
+test('Dragging the stage stack changes order and placement without losing layer settings',()=>{
+ const layers=[{id:'a',plane:'front',text:'A',start:2},{id:'b',plane:'front',text:'B',opacity:.5},{id:'c',plane:'behind',text:'C',end:5}];
+ const reordered=Stage.reorderLayers(layers,['a',null,'b','c']);
+ assert.deepEqual(reordered.map(l=>[l.id,l.plane]),[['a','front'],['c','behind'],['b','behind']]);
+ assert.equal(reordered[2].opacity,.5);assert.equal(reordered[0].start,2);assert.equal(reordered[1].end,5);
+ assert.equal(layers[1].plane,'front','Reorder must not mutate the undo snapshot');
+ assert.equal(Stage.reorderLayers(layers,['a','a','b',null]),null);assert.equal(Stage.reorderLayers(layers,['a','b','c']),null);
+});
 test('Stage layer timing fades at both ends and serialization bounds unsafe data',()=>{const l=Stage.clean({layers:[{type:'text',start:2,end:6,fadeIn:1,fadeOut:1,width:9,x:9,fontSize:999}]}).layers[0];assert.equal(Stage.alpha(l,1),0);assert.equal(Stage.alpha(l,2.5),.5);assert.equal(Stage.alpha(l,3),1);assert.equal(Stage.alpha(l,5.5),.5);assert.equal(Stage.alpha(l,6),0);assert.equal(l.width,1);assert.equal(l.x,0);assert.equal(l.fontSize,300);assert.equal(Stage.clean({layers:[{src:'https://example.com/a.png'}]}).layers[0].src,'');assert.deepEqual(Stage.clean(JSON.parse(JSON.stringify({layers:[l]}))).layers,[l]);});
 test('Stage images preserve layer ordering, contain aspect ratio and respect timed visibility',async()=>{const image=createCanvas(20,20);image.getContext('2d').fillStyle='#00ff00';image.getContext('2d').fillRect(0,0,20,20);const design=Stage.clean({layers:[{type:'image',src:image.toDataURL('image/png'),x:0,y:0,width:1,height:1,start:1,end:3,fadeIn:0,fadeOut:0}]}),renderer=new Stage.Renderer(loadImage),c=createCanvas(100,50),g=c.getContext('2d');await renderer.prepare(design);renderer.paint(g,100,50,0,design,4);assert.equal(g.getImageData(50,25,1,1).data[3],0);renderer.paint(g,100,50,2,design,4);assert.equal(g.getImageData(50,25,1,1).data[1],255);assert.equal(g.getImageData(0,0,1,1).data[3],0);});
 // Sample the lower strip rather than x=0: bar gaps and codec chroma sampling

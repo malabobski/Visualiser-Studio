@@ -5,6 +5,18 @@ const path=require('node:path');
 const {PGlite}=require('@electric-sql/pglite');
 const {cleanSharedLook,feedHandlers}=require('../community-feed');
 
+test('unknown shared styles retain their identity on feed reads and cannot be published as Bars',async()=>{
+  const original={style:'future-laser-v2',params:[.3,25,1],template_name:'Future lights',colour:'#ff0066',audioPath:'private',design:{colours:['#ff0066','#112233'],secret:'private'}};
+  const clean=cleanSharedLook(original);
+  assert.equal(clean.style,original.style);assert.equal(clean.unsupported,true);assert.deepEqual(clean.params,original.params);
+  assert.equal(clean.template_name,'Future lights');assert.doesNotMatch(JSON.stringify(clean),/private/);
+  assert.equal(cleanSharedLook({style:'bars'}).unsupported,undefined);
+  let calls=0;const h=feedHandlers({rpc:async()=>{calls++;return {data:[{id:'post',look:original}]};}},()=>({id:'me'}));
+  const result=await h.feed();assert.equal(result.posts[0].look.style,original.style);assert.equal(result.posts[0].look.unsupported,true);
+  await assert.rejects(h.publishPost({body:'Future',look:original}),/Update Visualiser Studio/);assert.equal(calls,1);
+  assert.equal(original.audioPath,'private','Cleaning must not mutate the stored look');
+});
+
 test('announcements load independently of feed filters and never expose attached private look data',async()=>{
   let selected,table,filter,limit;const query={select:value=>{selected=value;return query;},eq:(key,value)=>{filter=[key,value];return query;},order:()=>query,limit:async value=>{limit=value;return {data:[{id:'post',author_id:'me',announcement:true,profiles:{username:'creator',display_name:'Creator'},look:{style:'bars',audioPath:'private'}}]};}};
   const h=feedHandlers({from:name=>{table=name;return query;}},()=>({id:'me'}));
@@ -34,6 +46,12 @@ test('Postgres feed permissions, opt-in signup, friends filtering and pagination
       grant usage on schema public,auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;`);
     for(const file of ['202610230001_community_profiles.sql','202610230002_community_friends.sql','202610230003_username_cooldown.sql','202610230004_community_feed.sql'])await db.exec(await fs.readFile(path.join(__dirname,'../supabase/migrations',file),'utf8'));
     await db.exec(await fs.readFile(path.join(__dirname,'../supabase/migrations/202610230004_community_feed.sql'),'utf8'));
+    const laserMigration=await fs.readFile(path.join(__dirname,'../supabase/migrations/202610250001_laser_bloom_style.sql'),'utf8');
+    await db.exec(laserMigration);await db.exec(laserMigration);
+    const refractionMigration=await fs.readFile(path.join(__dirname,'../supabase/migrations/202610260001_refraction_styles.sql'),'utf8');
+    await db.exec(refractionMigration);await db.exec(refractionMigration);
+    const definition=(await db.query("select pg_get_functiondef('public.community_publish_post(text,jsonb)'::regprocedure) as definition")).rows[0].definition;
+    for(const style of ['laser','wings','glass'])assert(definition.includes("'"+style+"'"),'Missing allowed style '+style);
     for(const id of ids)await db.query('insert into auth.users values($1)',[id]);
     const as=async(id,role='authenticated')=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id||'']);await db.exec('set role '+role);};
     const create=async(name,announce)=>db.query('select * from public.community_create_profile($1,$2,$3,$4)',[name,name,'',announce]);
@@ -49,7 +67,8 @@ test('Postgres feed permissions, opt-in signup, friends filtering and pagination
     const request=(await db.query('select * from public.community_friends()')).rows[0];
     await db.query('select public.community_friend_action($1,$2)',[request.id,'accept']);
     assert.equal((await feed('friends')).length,1,'accepted friend intro appears');
-    const look=cleanSharedLook({style:'radial',colour:'#ff0066'});
+    const look=cleanSharedLook({style:'glass',colour:'#ff0066'});
+    assert.equal(look.style,'glass');
     const published=(await db.query('select public.community_publish_post($1,$2) as id',['A shared look',look])).rows[0].id;
     assert.equal((await feed())[0].kind,'look');
     await assert.rejects(db.query('select public.community_publish_post($1,null)',['Too soon']),/moment/);

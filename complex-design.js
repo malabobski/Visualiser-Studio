@@ -28,7 +28,7 @@
   const modeDescriptions={bands:'Each frequency uses its own colour. Good for seeing different sounds.',linear:'Colours blend across the stage in one direction.',radial:'Colours blend outward from the centre of the stage.',solid:'The first colour is used for the whole visualiser.'};
   dialog.addEventListener('close',()=>{if(stageHome){stageHome.parent.insertBefore(stageHome.stage,stageHome.next);stageHome=null;}document.querySelectorAll('.complex-hex-popup').forEach(p=>p.hidden=true);});
   function stored(){return ComplexStyles.designs[editingStyle]??={};}
-  function config(){const design=stored();return {...design,colours:design.customColours!==false&&Array.isArray(design.colours)?design.colours:[...ComplexStyles.palettes[Math.round(valueFor(editingStyle,3))%4]]};}
+  function config(){const design=stored();return {...design,colours:design.customColours!==false&&Array.isArray(design.colours)?design.colours:[...ComplexStyles.palettes[Math.round(valueFor(editingStyle,3))%ComplexStyles.palettes.length]]};}
   function customConfig(){const colours=config().colours.slice();const design=stored();design.colours=colours;design.customColours=true;return design;}
   function preview(){
     const design=config(),gradient=design.kind==='solid'?design.colours[0]:design.kind==='radial'?`radial-gradient(circle,${design.colours.join(',')})`:`linear-gradient(${design.angle??45}deg,${design.colours.join(',')})`;
@@ -68,7 +68,7 @@
   });
   const sync=()=>{
     const complex=!!ComplexStyles.names[$('style').value];document.querySelector('main').classList.toggle('complex-colours',complex);buttonWrap.hidden=!complex;movement.hidden=!complex;
-    if(complex){const d=ComplexStyles.getDesign($('style').value),colours=d.customColours!==false&&Array.isArray(d.colours)?d.colours:ComplexStyles.palettes[Math.round(valueFor($('style').value,3))%4];document.querySelector('.complex-gradient-swatch').style.background=`linear-gradient(90deg,${colours.join(',')})`;$('complexMovement').value=valueFor($('style').value,4);$('complexFocus').value=valueFor($('style').value,5);}
+    if(complex){const d=ComplexStyles.getDesign($('style').value),colours=d.customColours!==false&&Array.isArray(d.colours)?d.colours:ComplexStyles.palettes[Math.round(valueFor($('style').value,3))%ComplexStyles.palettes.length];document.querySelector('.complex-gradient-swatch').style.background=`linear-gradient(90deg,${colours.join(',')})`;$('complexMovement').value=valueFor($('style').value,4);$('complexFocus').value=valueFor($('style').value,5);}
   };
   new MutationObserver(sync).observe($('styleName'),{childList:true,subtree:true});
   new MutationObserver(sync).observe($('styleOptionControls'),{childList:true});sync();

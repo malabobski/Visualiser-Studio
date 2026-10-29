@@ -22,4 +22,29 @@
 body.reduce-motion .achievements-dialog,body.reduce-motion #achievementsDialog .achievement-card,body.reduce-motion .achievement-hint{transition:none}
 @media(prefers-reduced-motion:reduce){.achievements-dialog,#achievementsDialog .achievement-card,.achievement-hint{transition:none}}
 
-.achievement-hint[hidden]{display:none}
+/* Compact discovery cards, with a reserved hint row so hovering never shifts neighbours. */
+.achievements-dialog{width:min(780px,calc(100vw - 40px));gap:16px}
+.achievements-list{gap:10px;padding:2px 5px 4px 2px}
+#achievementsDialog .achievement-card{
+  --card-angle:125deg;--card-primary:12%;--card-secondary:5%;
+  box-sizing:border-box;display:grid;grid-template-columns:24px minmax(0,1fr) auto;grid-template-rows:auto 1fr;
+  align-items:start;column-gap:10px;row-gap:10px;min-height:112px;padding:14px;border-radius:13px;overflow:hidden;
+  background:linear-gradient(var(--card-angle),color-mix(in srgb,var(--accent) var(--card-primary),transparent),color-mix(in srgb,var(--accent-2) var(--card-secondary),transparent)),#19202d;
+  transition:border-color .2s ease,box-shadow .2s ease;
+}
+#achievementsDialog .achievement-card:nth-child(6n+2){--card-angle:245deg;--card-primary:6%;--card-secondary:13%}
+#achievementsDialog .achievement-card:nth-child(6n+3){--card-angle:35deg;--card-primary:9%;--card-secondary:9%}
+#achievementsDialog .achievement-card:nth-child(6n+4){--card-angle:190deg;--card-primary:5%;--card-secondary:14%}
+#achievementsDialog .achievement-card:nth-child(6n+5){--card-angle:310deg;--card-primary:14%;--card-secondary:5%}
+#achievementsDialog .achievement-card:nth-child(6n){--card-angle:80deg;--card-primary:8%;--card-secondary:11%}
+#achievementsDialog .achievement-card:hover,#achievementsDialog .achievement-card:focus-visible{border-color:color-mix(in srgb,var(--accent-2) 40%,#ffffff18);box-shadow:inset 0 0 24px #ffffff04}
+#achievementsDialog .achievement-card.is-complete{border-color:color-mix(in srgb,var(--accent) 55%,transparent);--card-primary:18%}
+#achievementsDialog .achievement-symbol{font-size:18px;line-height:22px}
+#achievementsDialog .achievement-copy{gap:4px}
+#achievementsDialog .achievement-copy strong{font-size:11px}
+#achievementsDialog .achievement-progress{font-size:10px;line-height:20px}
+#achievementsDialog .achievement-status{font-size:9px}
+#achievementsDialog .achievement-hint{position:static;grid-column:1/-1;align-self:end;min-height:30px;font:10px/1.5 var(--control-font);color:#b2bfd5;opacity:0;transform:translateY(5px);transition:opacity .22s ease,transform .28s cubic-bezier(.2,.8,.2,1)}
+#achievementsDialog .achievement-card:hover .achievement-hint,#achievementsDialog .achievement-card:focus .achievement-hint,#achievementsDialog .achievement-card.hint-visible .achievement-hint{opacity:1;transform:none}
+body.reduce-motion #achievementsDialog .achievement-card,body.reduce-motion #achievementsDialog .achievement-hint{transition:none}
+@media(prefers-reduced-motion:reduce){#achievementsDialog .achievement-card,#achievementsDialog .achievement-hint{transition:none}}

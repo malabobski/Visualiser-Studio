@@ -14,6 +14,11 @@
   $('easeSnapshot').firstChild.textContent='Save stage image ';
   file.addEventListener('toggle',()=>{if(file.open)$('easeEdit').open=false;});
   $('easeEdit').addEventListener('toggle',()=>{if($('easeEdit').open)file.open=false;});
+  const barMenus=[file,$('easeEdit')];
+  barMenus.forEach(menu=>menu.querySelector('summary').addEventListener('pointerenter',event=>{
+    if(event.pointerType!=='mouse'||!barMenus.some(item=>item.open))return;
+    barMenus.forEach(item=>{if(item!==menu)item.open=false;});menu.open=true;
+  }));
   file.addEventListener('click',e=>{if(e.target.closest('button'))file.open=false;});
   document.addEventListener('click',e=>{if(!file.contains(e.target))file.open=false;});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')file.open=false;});
@@ -37,7 +42,7 @@
     rows.forEach(row=>{
       const i=Number(row.querySelector('input').dataset.styleSetting);
       const name=row.querySelector('label').textContent;
-      const group=!complex?(['Speed','Flow','Pulse'].includes(name)?'motion':'shape'):i===3?'colour':i===2?'sound':i===0||name==='Gravity'||name==='Pitch bend'?'motion':'shape';
+      const group=['laser','wings','glass'].includes($('style').value)?([3,6,7].includes(i)?'colour':(i===0||i===9||i===10&&$('style').value==='laser')?'motion':i===2?'sound':'shape'):!complex?(['Speed','Flow','Pulse'].includes(name)?'motion':'shape'):i===3?'colour':i===2?'sound':i===0||name==='Gravity'||name==='Pitch bend'?'motion':'shape';
       groups[group].append(row);
     });
     if(complex){
@@ -67,7 +72,7 @@
     const groups={shape:section('Shape & detail',true),motion:section('Motion'),sound:section('Response tuning'),colour:section('Palette')};
     rows.forEach((row,i)=>{
       const name=styleParameters[liveLook.style][i][0];
-      const key=!complex?(['Speed','Flow','Pulse'].includes(name)?'motion':'shape'):i===3?'colour':i===2||i===5?'sound':i===0||i===4||name==='Gravity'||name==='Pitch bend'?'motion':'shape';groups[key].append(row);
+      const key=['laser','wings','glass'].includes(liveLook.style)?([3,6,7].includes(i)?'colour':(i===0||i===9||i===10&&liveLook.style==='laser')?'motion':i===2?'sound':'shape'):!complex?(['Speed','Flow','Pulse'].includes(name)?'motion':'shape'):i===3?'colour':i===2||i===5?'sound':i===0||i===4||name==='Gravity'||name==='Pitch bend'?'motion':'shape';groups[key].append(row);
     });
     Object.values(groups).forEach(group=>{if(group.children.length>1)liveParams.append(group);});
   }).observe(liveParams,{childList:true});

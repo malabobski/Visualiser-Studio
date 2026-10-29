@@ -79,8 +79,11 @@
     styleParameters[liveLook.style].forEach((p,i)=>{
       const label=document.createElement('label');label.className='live-param';label.textContent=p[0];
       const input=document.createElement('input'),output=document.createElement('output');
-      input.type='range';input.min=p[1];input.max=p[2];input.step=p[4];input.value=liveLook.params[i];input.dataset.default=p[3];input.setAttribute('aria-label',p[0]);output.value=input.value;
-      input.oninput=()=>{liveLook.params[i]=Number(input.value);output.value=input.value;persist();};
+      const choices=ComplexStyles.names[liveLook.style]?({3:['Dreamscape','Candy night','Sea glass','Electric dusk','Laser spectrum','Spectral light','Glass prism'],4:ComplexStyles.movements,5:ComplexStyles.focuses})[i]:null;
+      if(choices)label.classList.add('live-param-named');
+      const syncValue=()=>{output.value=choices?.[Number(input.value)]??input.value;if(choices)input.setAttribute('aria-valuetext',output.value);};
+      input.type='range';input.min=p[1];input.max=p[2];input.step=p[4];input.value=liveLook.params[i];input.dataset.default=p[3];input.setAttribute('aria-label',p[0]);syncValue();
+      input.oninput=()=>{liveLook.params[i]=Number(input.value);syncValue();persist();};
       label.append(input,output);$('liveParameters').append(label);
     });
   }

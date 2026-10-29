@@ -213,6 +213,12 @@
     else viewport.scrollLeft+=(Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY)*scale;
   },{passive:false});
   $('automationWave').onclick=e=>{if(!loadedFile)return;const box=e.currentTarget.getBoundingClientRect();audio.currentTime=Math.max(0,Math.min(duration(),(e.clientX-box.left)/box.width*duration()));};
+  const ruler=$('automationRuler');let rulerPointer=null;
+  ruler.dataset.hint='Click or drag to move the playhead';
+  const seekRuler=e=>{const box=ruler.getBoundingClientRect();if(loadedFile&&box.width)audio.currentTime=clamp((e.clientX-box.left)/box.width,0,1)*duration();};
+  ruler.addEventListener('pointerdown',e=>{if(e.button!==0||!loadedFile)return;e.preventDefault();rulerPointer=e.pointerId;ruler.setPointerCapture(e.pointerId);seekRuler(e);});
+  ruler.addEventListener('pointermove',e=>{if(e.pointerId===rulerPointer)seekRuler(e);});
+  for(const event of ['pointerup','pointercancel','lostpointercapture'])ruler.addEventListener(event,()=>{rulerPointer=null;});
   screen.addEventListener('keydown',e=>e.stopPropagation());
   document.addEventListener('keydown',e=>{if(screen.hidden)return;if(e.target.closest('.app-context-menu,.slider-number-editor,.section-colour-popup,.transition-band-range'))return;if(e.target.closest('.automation-transition')&&!((e.ctrlKey||e.metaKey)&&['z','y','s'].includes(e.key.toLowerCase()))&&e.key!=='Escape')return;if(e.target.matches('.automation-track-resize')&&['ArrowUp','ArrowDown','Home','End'].includes(e.key))return;if(e.target.matches('input,select')&&e.key!=='Escape'&&!((e.ctrlKey||e.metaKey)&&['z','y'].includes(e.key.toLowerCase())))return;e.stopImmediatePropagation();if(e.key==='Escape'){e.preventDefault();closeEditor();}else if(e.code==='Space'){e.preventDefault();$('automationPlay').click();}else if((e.ctrlKey||e.metaKey)&&['z','y'].includes(e.key.toLowerCase())){e.preventDefault();travel(e.key.toLowerCase()==='z'&&!e.shiftKey);}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();window.Projects?.save();}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='t'){e.preventDefault();saveCurrentAsTemplate();}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='i'){e.preventDefault();$('easeSnapshot').click();}},true);
   new ResizeObserver(()=>{if(!screen.hidden)renderTimeline();}).observe($('automationScroll'));

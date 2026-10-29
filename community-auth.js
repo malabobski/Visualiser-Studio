@@ -115,6 +115,7 @@ function setupCommunity({ app, ipcMain, safeStorage, shell, getWindow, getOrigin
   }
   let operation = false;
   const handlers = {
+    openSong:async input=>{const destination=require('./community-listening').destination(input);if(!destination)throw new Error('This song is unavailable.');await shell.openExternal(destination.url);return {opened:true};},
     ...require('./community-friends').friendHandlers(client, () => user),
     ...require('./community-feed').feedHandlers(client, () => user),
     ...require('./community-admin').adminHandlers(client, () => user),

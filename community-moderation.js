@@ -18,7 +18,7 @@
     const card=document.createElement('article');card.dataset.id=notification.id;const title=document.createElement('h4'),body=document.createElement('p'),dismiss=document.createElement('button');title.textContent=notification.title;body.textContent=notification.body;dismiss.textContent='Dismiss';dismiss.type='button';
     dismiss.onclick=async()=>{const result=await bridge.acknowledgeNotifications([notification.id]);if(!result.error){card.remove();notices.hidden=!notices.children.length;}};card.append(title,body,dismiss);notices.append(card);
    }
-   if(!shown.has(notification.id)&&window.AppNotifications?.show){shown.add(notification.id);window.AppNotifications.show({group:'community-admin:'+id,title:notification.title,message:notification.body,symbol:'♛',duration:8000,onClick:()=>{if(id!==account)return;document.querySelector('[data-screen="community"]')?.click();notices.scrollIntoView({block:'nearest',behavior:document.body.classList.contains('reduce-motion')?'instant':'smooth'});}});}
+   if(!shown.has(notification.id)&&window.AppNotifications?.show){shown.add(notification.id);window.AppNotifications.show({group:'community-admin:'+id,title:notification.title,message:notification.body,symbol:'♛',duration:8000,onClick:async()=>{if(id!==account)return false;await window.AppNotifications.navigate('community');if(id!==account)return false;notices.scrollIntoView({block:'nearest',behavior:document.body.classList.contains('reduce-motion')?'instant':'smooth'});}});}
   }
   const keep=new Set(items.map(n=>n.id));for(const [id,card]of existing)if(!keep.has(id))card.remove();
  }

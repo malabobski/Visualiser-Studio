@@ -1,4 +1,4 @@
-param([ValidateSet('', 'toggle', 'previous', 'next', 'seek')][string]$Action = '', [double]$Position = 0)
+param([ValidateSet('', 'toggle', 'previous', 'next', 'seek')][string]$Action = '', [double]$Position = 0, [switch]$ControlServer)
 # Polls Windows' SMTC (System Media Transport Controls) — the same registry
 # every media app (Spotify, browsers, VLC) publishes title/artist/artwork
 # into for the volume flyout — and prints one line of JSON to stdout each
@@ -7,7 +7,8 @@ param([ValidateSet('', 'toggle', 'previous', 'next', 'seek')][string]$Action = '
 # Deliberately polling rather than subscribing to WinRT events: event
 # subscriptions need a running message pump (WinForms/WPF dispatcher) to
 # actually fire in plain PowerShell, which is more moving parts than a
-# 1-second poll buys us here.
+# quarter-second poll buys us here. Commands use a separate persistent helper
+# so they never wait for the poll or artwork reads.
 #
 # Three things worth knowing if this ever goes quiet (or noisy) again:
 #
@@ -90,19 +91,39 @@ Write-Diag 'requesting session manager'
 $manager = Await ($managerType::RequestAsync()) $managerType
 Write-Diag 'got session manager — entering poll loop'
 
-if ($Action) {
+function Invoke-MediaControl([string]$CommandAction, [double]$CommandPosition) {
     try {
         $session = $manager.GetCurrentSession()
-        if ($null -eq $session) { Write-Line 'false'; exit }
-        $operation = switch ($Action) {
+        if ($null -eq $session) { return $false }
+        $operation = switch ($CommandAction) {
             'toggle' { $session.TryTogglePlayPauseAsync() }
             'previous' { $session.TrySkipPreviousAsync() }
             'next' { $session.TrySkipNextAsync() }
-            'seek' { $session.TryChangePlaybackPositionAsync([long]($Position * 10000000)) }
+            'seek' { $session.TryChangePlaybackPositionAsync([long]($CommandPosition * 10000000)) }
+            default { return $false }
         }
-        $result = Await $operation ([bool])
-        Write-Line ($result.ToString().ToLowerInvariant())
-    } catch { Write-Diag "control error: $_"; Write-Line 'false' }
+        return (Await $operation ([bool]))
+    } catch { Write-Diag "control error: $_"; return $false }
+}
+if ($ControlServer) {
+    while ($null -ne ($line = [Console]::In.ReadLine())) {
+        try {
+            $command = $line | ConvertFrom-Json
+            $result = $false
+            if ($command.action -in @('toggle', 'previous', 'next', 'seek')) {
+                $seekPosition = 0.0
+                if ($command.action -ne 'seek' -or ([double]::TryParse([string]$command.position, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$seekPosition) -and $seekPosition -ge 0 -and -not [double]::IsInfinity($seekPosition))) {
+                    $result = Invoke-MediaControl $command.action $seekPosition
+                }
+            }
+            Write-Line (@{ id = $command.id; result = [bool]$result } | ConvertTo-Json -Compress)
+        } catch { Write-Diag "command error: $_" }
+    }
+    exit
+}
+if ($Action) {
+    $result = Invoke-MediaControl $Action $Position
+    Write-Line ($result.ToString().ToLowerInvariant())
     exit
 }
 $sourceNames = @{}
@@ -196,5 +217,5 @@ while ($true) {
             $lastKey = 'none'
         }
     }
-    Start-Sleep -Milliseconds 1000
+    Start-Sleep -Milliseconds 250
 }

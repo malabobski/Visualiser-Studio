@@ -1,4 +1,4 @@
-(function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.CommunitySocialCore=factory();})(typeof globalThis!=='undefined'?globalThis:this,()=>{
+(function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory(require('./community-listening'));else root.CommunitySocialCore=factory(root.CommunityListening);})(typeof globalThis!=='undefined'?globalThis:this,(listening)=>{
 const uuid=value=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value||'');
 function socialHandlers(client,getUser,store) {
   const me=()=>{const id=getUser()?.id;if(!uuid(id))throw new Error('Sign in to use Community.');return id;};
@@ -7,6 +7,12 @@ function socialHandlers(client,getUser,store) {
     throw new Error(error.code==='P0001'?error.message:'Couldn’t connect to Community. Please try again.');}return data;}
   const username=input=>{const name=String(input||'').replace(/^@/,'').trim().toLowerCase();if(!/^[a-z0-9_]{3,24}$/.test(name))throw new Error('Choose a valid username.');return name;};
   async function person(input){const rows=await rpc('community_person',{target_username:username(input)});if(!rows?.[0])throw new Error('This profile is unavailable.');return rows[0];}
+  async function compatibleRpc(name,input,legacy,legacyInput){
+    me();const response=await client.rpc(name,input);
+    if(response.error){if(['PGRST202','42883'].includes(response.error.code))return rpc(legacy,legacyInput);throw new Error('Couldn’t connect to Community. Please try again.');}
+    return response.data;
+  }
+  async function friendActivity(){return {activities:(await compatibleRpc('community_friend_activity_v2',undefined,'community_friend_activity'))||[]};}
   function checkAccount(id){if(me()!==id)throw new Error('Your account changed. Open the conversation again.');}
   async function sync(peer,account){
     const incoming=await rpc('community_dm_receive',{peer:peer.id});checkAccount(account);
@@ -20,10 +26,13 @@ function socialHandlers(client,getUser,store) {
     return incoming?.length||0;
   }
   return {
-    person:async input=>({person:await person(input)}),
+    person:async input=>{const profile=await person(input);if(profile.activity&&profile.relationship?.status==='accepted'){
+      const result=await friendActivity();profile.track=listening.clean(result.activities.find(a=>a.person_id===profile.id)?.track);
+    }return {person:profile};},
     socialSettings:async()=>({sharing:await rpc('community_social_settings')===true,secureMessages:store.available()}),
-    setActivity:async input=>{if(typeof input?.sharing!=='boolean')throw new Error('Choose whether to share activity.');await rpc('community_set_activity',{shared:input.sharing,description:input.sharing?String(input.activity||'').slice(0,180):''});return {sharing:input.sharing};},
-    friendActivity:async()=>({activities:await rpc('community_friend_activity')||[]}),
+    setActivity:async input=>{if(typeof input?.sharing!=='boolean')throw new Error('Choose whether to share activity.');const args={shared:input.sharing,description:input.sharing?String(input.activity||'').slice(0,180):''};await compatibleRpc('community_set_activity_v2',{...args,track:input.sharing?listening.clean(input.track):null},'community_set_activity',args);return {sharing:input.sharing};},
+    setWebActivity:async input=>{if(typeof input?.sharing!=='boolean')throw new Error('Choose whether to share activity.');const args={shared:input.sharing,description:input.sharing?String(input.activity||'').slice(0,180):''};await compatibleRpc('community_set_web_activity',args,'community_set_activity',args);return {sharing:input.sharing};},
+    friendActivity,
     blockPerson:async input=>{if(!uuid(input?.id)||typeof input.blocked!=='boolean')throw new Error('Choose a member.');await rpc('community_block_person',{target:input.id,blocked:input.blocked});return {blocked:input.blocked};},
     dmInbox:async()=>{
       const account=me(),inbox=await rpc('community_dm_inbox');checkAccount(account);

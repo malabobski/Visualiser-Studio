@@ -1,9 +1,10 @@
 /* Shared control rhythm; transport controls and window chrome retain their sizes. */
 :root{--ui-control-height:40px;--ui-radius:11px;--ui-border:#ffffff20;--ui-muted:#a4afc7;--ui-surface:#252c40}
 button,input,select,textarea{font-family:var(--control-font,'Space Grotesk',sans-serif)}
+#easeResults .ease-command-group{display:grid;gap:2px;padding:4px 0 8px}#easeResults .ease-command-group+.ease-command-group{border-top:1px solid #ffffff0b;padding-top:10px}#easeResults .ease-command-group h3{margin:0;padding:5px 12px;font:500 10px var(--control-font,'Space Grotesk',sans-serif);letter-spacing:.06em;color:var(--muted,#9ba9c4)}#easeResults .ease-command-group button{width:100%;padding:9px 12px;font-family:var(--control-font,'Space Grotesk',sans-serif)}#easeResults .ease-command-group kbd{flex-shrink:0;margin-left:14px}
 button:not(:disabled){cursor:pointer}
 button:disabled{cursor:default}
-.actions button,.live-look-controls>button,.now-playing-actions>button,.menu-default,.accent-reset-btn,.record-dialog button:not(.record-heading button),.exit-actions button{box-sizing:border-box;min-height:var(--ui-control-height);border-radius:var(--ui-radius);font:500 12px var(--control-font);padding:10px 14px}
+.actions button,.live-look-controls>button,.now-playing-actions>button,.menu-default,.accent-reset-btn,.record-dialog button:not(.record-heading button):not(.stage button),.exit-actions button{box-sizing:border-box;min-height:var(--ui-control-height);border-radius:var(--ui-radius);font:500 12px var(--control-font);padding:10px 14px}
 .unified-select button.unified-toggle,.style-toggle,.range-toggle,.colour-toggle{box-sizing:border-box;height:var(--ui-control-height);min-height:var(--ui-control-height);border-radius:var(--ui-radius)}
 .simple-menu,.unified-menu{border-radius:13px;padding:6px;border:1px solid var(--ui-border);background:#20263a;box-shadow:0 14px 35px #0007}
 .simple-menu .simple-option,.unified-menu .unified-option{min-height:31px;border-radius:8px;font:500 12px var(--control-font)}

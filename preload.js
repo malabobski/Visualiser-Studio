@@ -1,5 +1,16 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
+contextBridge.exposeInMainWorld('fileBrowser', {
+  places:()=>ipcRenderer.invoke('files:places'),
+  list:location=>ipcRenderer.invoke('files:list',location),
+  preview:location=>ipcRenderer.invoke('files:preview',location),
+  mkdir:(location,name)=>ipcRenderer.invoke('files:mkdir',location,name),
+  finish:(id,selection)=>ipcRenderer.invoke('files:finish',id,selection),
+  pick:options=>ipcRenderer.invoke('files:pick',options),
+  path:token=>ipcRenderer.invoke('files:path',token),
+  onShow:callback=>{const listener=(_event,options)=>callback(options);ipcRenderer.on('files:show',listener);return()=>ipcRenderer.removeListener('files:show',listener);}
+});
 contextBridge.exposeInMainWorld('community', {
+  openSong: track => ipcRenderer.invoke('community:openSong', track),
   onReturn: callback => {
     const listener = () => callback();
     ipcRenderer.on('community:open', listener);
@@ -115,6 +126,7 @@ contextBridge.exposeInMainWorld('mediaVolume', {
 });
 
 contextBridge.exposeInMainWorld('appUpdates', {
+  acknowledgeHighlights:()=>ipcRenderer.invoke('updates:highlights-seen'),
   get:()=>ipcRenderer.invoke('updates:get'),
   check:()=>ipcRenderer.invoke('updates:check'),
   setAutomatic:value=>ipcRenderer.invoke('updates:automatic',value),
