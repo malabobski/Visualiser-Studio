@@ -9,7 +9,7 @@
   let refreshingFriends = false, friendEpoch = 0;
   let startupRequestsChecked = false;
   let unreadMessages=0;
-  function updateSidebar(){const requests=relationships.filter(r=>r.status==='pending'&&r.direction==='incoming').length,total=state.signedIn?requests+unreadMessages:0;el('SidebarCount').textContent=total>99?'99+':total;el('SidebarCount').hidden=!total;const nav=document.querySelector('[data-screen="community"]'),parts=[];if(requests)parts.push(requests+' friend '+(requests===1?'request':'requests'));if(unreadMessages)parts.push(unreadMessages+' unread '+(unreadMessages===1?'message':'messages'));const label='Community'+(parts.length?', '+parts.join(', '):'');nav.setAttribute('aria-label',label);nav.dataset.hint=label+' · Alt+5';}
+  function updateSidebar(){const requests=relationships.filter(r=>r.status==='pending'&&r.direction==='incoming').length,total=state.signedIn?requests+unreadMessages:0;el('SidebarCount').textContent=total>99?'99+':total;el('SidebarCount').hidden=!total;const nav=document.querySelector('[data-screen="community"]'),parts=[];if(requests)parts.push(requests+' friend '+(requests===1?'request':'requests'));if(unreadMessages)parts.push(unreadMessages+' unread '+(unreadMessages===1?'message':'messages'));const label='Community'+(parts.length?', '+parts.join(', '):'');nav.setAttribute('aria-label',label);nav.dataset.hint=label+' · Alt+6';}
   const profileDialog = el('ProfileDialog');
   const confirmDialog = el('ConfirmDialog');
   const friendTabs=['friends','requests','add','corner'];

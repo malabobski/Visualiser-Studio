@@ -60,13 +60,14 @@ const activityStart = Date.now();
 let pendingDiscordActivity={details:'Getting things ready…',state:'Visualiser Studio'};
 let discordLastKey='',discordLastSent=0,discordTimer;
 let discordConnecting=false,discordStopped=false,discordRetry;
+let discordActiveRequest=null;
 function retryDiscord(){
   clearTimeout(discordRetry);
   if(discordStopped||!discordEnabled)return;
   discordRetry=setTimeout(setupDiscordRPC,15000);discordRetry.unref?.();
 }
 function flushDiscordActivity(){
-  if(!discordEnabled || !discordReady || !discordClient)return;
+  if(!discordEnabled || !discordReady || !discordClient || discordActiveRequest)return;
   const key=JSON.stringify(pendingDiscordActivity);
   if(key===discordLastKey)return;
   clearTimeout(discordTimer);
@@ -75,7 +76,10 @@ function flushDiscordActivity(){
   discordLastKey=key;discordLastSent=Date.now();
   // discord-rpc's older setActivity wrapper drops the clickable-image URL.
   // Send the activity payload directly through the same local RPC transport.
-  discordClient.request('SET_ACTIVITY', {
+  const client=discordClient,attempt={client,timer:null};discordActiveRequest=attempt;
+  const request=new Promise((resolve,reject)=>{
+    attempt.timer=setTimeout(()=>{const error=Error('Discord activity timed out');error.activityTimeout=true;reject(error);},10000);
+    Promise.resolve().then(()=>client.request('SET_ACTIVITY', {
     pid:process.pid,
     activity:{
       ...pendingDiscordActivity,
@@ -84,7 +88,24 @@ function flushDiscordActivity(){
       buttons:[{label:'Visit website',url:WEBSITE_URL}],
       instance:false
     }
-  }).catch(()=>{discordLastKey='';});
+    })).then(resolve,reject);
+  });
+  request.then(()=>{
+    clearTimeout(attempt.timer);
+    if(discordActiveRequest!==attempt)return;
+    discordActiveRequest=null;
+    flushDiscordActivity();
+  },error=>{
+    clearTimeout(attempt.timer);
+    if(discordActiveRequest!==attempt)return;
+    discordActiveRequest=null;discordLastKey='';
+    if(error.activityTimeout){
+      discordReady=false;discordConnecting=false;
+      client.destroy().catch(()=>{});retryDiscord();
+    }else if(discordEnabled&&!discordStopped){
+      clearTimeout(discordTimer);discordTimer=setTimeout(flushDiscordActivity,4000);
+    }
+  });
 }
 
 // Connects to the local Discord desktop client over IPC. If Discord isn't
@@ -96,6 +117,7 @@ function setupDiscordRPC() {
   const client=discordClient = new RPC.Client({ transport: 'visualiser-ipc' });
   const disconnected=()=>{
     if(discordClient!==client)return;
+    if(discordActiveRequest?.client===client){clearTimeout(discordActiveRequest.timer);discordActiveRequest=null;}
     discordConnecting=false;discordReady=false;discordLastKey='';retryDiscord();
   };
   client.on('disconnected',disconnected);
@@ -238,6 +260,7 @@ app.on('will-quit', () => {
   mediaVolume.stop();
   nowPlayingControl.stop();
   discordStopped=true;clearTimeout(discordRetry);clearTimeout(discordTimer);
+  clearTimeout(discordActiveRequest?.timer);
   macNowPlaying?.stop();
   macAutomation?.stop();
   if (nowPlayingProcess) nowPlayingProcess.kill();
@@ -493,6 +516,7 @@ async function createWindow() {
 app.whenReady().then(async () => {
   try{releaseHighlights=await require('./release-highlights').loadReleaseHighlights({directory:app.getPath('userData'),version:app.getVersion(),packaged:app.isPackaged&&!isMacPreview});}catch{}
   fileDialogs=require('./file-explorer-main').setupFileExplorer({app,ipcMain,dialog,getWindow:()=>mainWindow});
+  require('./ableton-connector').setupAbletonConnector({app,ipcMain,dialog:fileDialogs,getWindow:()=>mainWindow});
   require('./community-auth').setupCommunity({ app, ipcMain, safeStorage, shell, getWindow: () => mainWindow, getOrigin: () => `http://localhost:${mainAppPort}`, onSignedIn: () => {
     restoreFullApp();
     require('./community-window').focusCommunityWindow({app,win:mainWindow});

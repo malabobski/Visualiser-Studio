@@ -1,6 +1,6 @@
 {
   "name": "audio-visualiser-studio",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "private": true,
   "description": "Turn audio tracks into visualiser videos.",
   "main": "main.js",
@@ -59,7 +59,8 @@
       "!supabase/**",
       "!website/**",
       "!COMMUNITY_ROADMAP.md",
-      "!AI_Preset.ini"
+      "!AI_Preset.ini",
+      "!**/__pycache__/**"
     ],
     "asarUnpack": [
       "node_modules/ffmpeg-static/**",
@@ -82,7 +83,8 @@
       "artifactName": "Visualiser-Studio-${version}-mac-${arch}.${ext}",
       "extendInfo": {
         "NSAudioCaptureUsageDescription": "Visualiser Studio uses system audio to animate live music visualisers.",
-        "NSAppleEventsUsageDescription": "Visualiser Studio reads track details and controls playback and volume in Spotify and Apple Music."
+        "NSAppleEventsUsageDescription": "Visualiser Studio reads track details and controls playback and volume in Spotify and Apple Music.",
+        "NSMicrophoneUsageDescription": "Visualiser Studio uses your selected audio input to animate visuals in DAW Link."
       },
       "entitlements": "build/entitlements.mac.plist",
       "icon": "build/icon-mac.icns"

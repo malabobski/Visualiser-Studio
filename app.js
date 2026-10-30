@@ -495,16 +495,20 @@ function persistAppSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringi
 // settings that actually do something, persisted to localStorage.
 (()=>{
   const burger=$('burgerToggle'),overlay=$('sideOverlay'),panel=$('sidePanel');
-  const screens={create:document.querySelector('main'),templates:$('screen-templates'),batch:$('screen-batch'),live:$('screen-live'),community:$('screen-community')};
+  const screens={create:document.querySelector('main'),templates:$('screen-templates'),batch:$('screen-batch'),live:$('screen-live'),daw:$('screen-daw'),community:$('screen-community')};
   const navItems=[...document.querySelectorAll('.side-nav-item[data-screen]')];
   let currentScreen='create';
 
-  function showScreen(name){
+  async function showScreen(name){
     if(!screens[name]||name===currentScreen)return;
+    if(name==='daw'){const from=currentScreen;if(!window.DawLink||!await window.DawLink.confirmEntry()||currentScreen!==from)return;}
+    if((name==='daw'||currentScreen==='daw')&&document.fullscreenElement){try{await document.exitFullscreen();}catch{return;}}
+    const previousScreen=currentScreen;
     if(currentScreen==='live'&&typeof stopLiveAudio==='function')stopLiveAudio();
     Object.entries(screens).forEach(([key,el])=>{if(el)el.hidden=key!==name;});
     navItems.forEach(item=>{const selected=item.dataset.screen===name;item.classList.toggle('selected',selected);if(selected)item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');});
     currentScreen=name;
+    window.dispatchEvent(new CustomEvent('screen-changed',{detail:{from:previousScreen,to:name}}));
     if(name==='templates')renderTemplatesScreen();
   }
 

@@ -1,4 +1,6 @@
 /* Horizontal Create layout only. The controls-left layout stays independent. */
+/* Screen navigation must also hide Create's positioned controls and stage. */
+html body main[hidden]{display:none!important}
 html body main:not(.controls-left) .controls{
   display:grid;grid-template-columns:180px minmax(0,1fr) 150px;
   grid-template-rows:auto 1fr auto;

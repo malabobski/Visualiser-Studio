@@ -3,7 +3,7 @@
   const nav=name=>document.querySelector(`[data-screen="${name}"]`)?.click();
   requestAnimationFrame(()=>{
     if(window.Tutorial?.shouldStart()){window.Tutorial.start({resume:true});return;}
-    if(['create','templates','batch'].includes(destination))nav(destination);
+    if(['create','templates','batch','daw','community'].includes(destination))nav(destination);
     else if(destination==='projects'){nav('create');window.Projects?.openLibrary();}
     else if(destination==='live'||destination==='liveaudio'){nav('live');document.querySelector(`[data-live-view="${destination==='liveaudio'?'liveaudio':'nowplaying'}"]`)?.click();}
     else if(destination==='settings'){nav('create');$('settingsToggle').click();}

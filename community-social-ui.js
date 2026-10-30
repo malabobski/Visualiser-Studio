@@ -89,6 +89,7 @@
   window.addEventListener('community-friends-rendered',paintActivity);
   function description(){
     if(typeof exporting!=='undefined'&&exporting)return 'Exporting a visualiser video';
+    if(document.getElementById('screen-daw')&&!document.getElementById('screen-daw').hidden)return 'Making music with DAW Link';
     if(typeof desktopMedia!=='undefined'&&desktopMedia?.title&&desktopMedia.playbackStatus==='Playing')return ('Listening to '+desktopMedia.title+(desktopMedia.artist?' · '+desktopMedia.artist:'')).slice(0,180);
     if(typeof liveActive!=='undefined'&&liveActive)return 'Visualising live audio';
     if(!screen.hidden)return 'Hanging out in Community';

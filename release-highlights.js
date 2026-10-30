@@ -3,12 +3,12 @@ const path=require('node:path');
 
 // Keep this short and written for listeners. Refresh it when preparing a release.
 const highlights={
-  title:'More ways to hang out with your music.',
+  title:'Your session, in colour.',
   sections:[
-    {title:'Fresh looks for your music',items:['Meet Laser Bloom, Spectral Wings and Glass Comets—three new reactive styles with glowing trails and moving light.']},
-    {title:'An easier place to start',items:['A new step-by-step introduction reveals the basics as you go.','Short guides help you find your feet in Stage Designer, MIDI and Automation.']},
-    {title:'Make it yours',items:['Drag Stage Designer layers above or below the visualiser to arrange your scene.','A cleaner file picker includes drive shortcuts and image previews.']},
-    {title:'Less waiting, more listening',items:['Video exports are faster while keeping the same quality settings.','Clearer menus, named Live controls and more helpful notifications make everyday use smoother.']}
+    {title:'Meet DAW Link',items:['A dedicated workspace brings your MIDI notes to life while you make music.','The Ableton connector links up to 16 tracks at once, with helper tracks that follow your solos.']},
+    {title:'See what you play',items:['Pitch trails, Note cascade and Chord constellation respond to your notes, chords and velocity.','Choose a different colour for each MIDI channel and identify chords live, including inversions.']},
+    {title:'Stay in sync',items:['See Ableton tempo beside MIDI clock, with a compact progress bar while tracks connect.','Choose DAW Link or Community as your startup screen. Alt+5 opens DAW Link, Alt+6 Community and Alt+7 Miniplayer.']},
+    {title:'Smoother sessions',items:['Softer note transitions and cleaner controls keep the focus on your music.','Discord Rich Presence recovers automatically from failed updates and stalled connections.']}
   ]
 };
 function newer(a,b){

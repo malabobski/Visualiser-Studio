@@ -32,7 +32,7 @@ jobs:
       - name: Install native Mac dependencies
         run: npm ci
       - name: Run tests
-        run: node --test tests/*.test.js
+        run: node --test --test-concurrency=2 tests/*.test.js
       - name: Check Mac scripting syntax
         run: |
           osacompile -l JavaScript -o "$RUNNER_TEMP/mac-media.scpt" mac-media.jxa

@@ -260,14 +260,15 @@
       ['Mute preview', 'M', mute],
       ['Start live audio', '', () => { nav('live'); document.querySelector('[data-live-view="liveaudio"]').click(); startLiveAudio(); }],
       ['Stop live audio', '', stopLiveAudio],
-      ['Open mini player', 'Alt+6', () => window.miniPlayer?.open()]
+      ['Open mini player', 'Alt+7', () => window.miniPlayer?.open()]
     ]],
     ['Go to', [
       ['Go to Create', 'Alt+1', () => nav('create')],
       ['Go to Templates', 'Alt+2', () => nav('templates')],
       ['Go to Batch Export', 'Alt+3', () => nav('batch')],
       ['Go to Live', 'Alt+4', () => nav('live')],
-      ['Go to Community', 'Alt+5', () => nav('community')]
+      ['Go to DAW Link', 'Alt+5', () => nav('daw')],
+      ['Go to Community', 'Alt+6', () => nav('community')]
     ]],
     ['App', [
       ['Preferences', 'Ctrl+,', () => $('settingsToggle').click()],

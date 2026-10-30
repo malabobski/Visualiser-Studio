@@ -1,4 +1,10 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
+contextBridge.exposeInMainWorld('abletonLink', {
+  get:()=>ipcRenderer.invoke('ableton:get'),
+  install:()=>ipcRenderer.invoke('ableton:install'),
+  command:request=>ipcRenderer.invoke('ableton:command',request),
+  onChange:callback=>{const listener=(_event,state)=>callback(state);ipcRenderer.on('ableton:state',listener);return()=>ipcRenderer.removeListener('ableton:state',listener);}
+});
 contextBridge.exposeInMainWorld('fileBrowser', {
   places:()=>ipcRenderer.invoke('files:places'),
   list:location=>ipcRenderer.invoke('files:list',location),
